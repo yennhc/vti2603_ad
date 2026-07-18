@@ -314,6 +314,6 @@ aws ec2 describe-instances --profile read-only-user
 
 ---
 
-**Ngày tạo**: 2024  
+**Ngày tạo**: 2026  
 **Phiên bản**: 1.0  
-**Tác giả**: VTI Infrastructure Team
+**Tác giả**: Yen Nguyen
