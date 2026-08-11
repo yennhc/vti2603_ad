@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Sơ đồ kiến trúc hệ thống mẫu v2 — SSIS Infrastructure</title>
+<style>
+  :root{
+    --bg:#0f1720;
+    --panel:#141f2b;
+    --ink:#e8edf2;
+    --muted:#8fa1b3;
+    --grid:#1c2b3a;
+
+    --sec:#e15b5b;
+    --rel:#3fb27f;
+    --perf:#4c8dff;
+    --cost:#e0a537;
+    --ops:#a373e8;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:radial-gradient(1200px 800px at 50% -10%, #17232f 0%, var(--bg) 60%);
+    color:var(--ink);
+    font-family:'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    padding:32px 16px 60px;
+  }
+  .wrap{max-width:1180px;margin:0 auto}
+  header{margin-bottom:20px}
+  h1{font-size:22px;font-weight:700;margin:0 0 4px;letter-spacing:.3px}
+  .ver{
+    display:inline-block;margin-left:8px;padding:2px 9px;border-radius:20px;
+    background:#1b2a38;color:#8fd6ff;font-size:11px;font-weight:700;vertical-align:middle;
+  }
+  .sub{color:var(--muted);font-size:13.5px;margin:0}
+
+  .changelog{
+    margin:16px 0 20px;
+    background:var(--panel);border:1px solid var(--grid);border-radius:10px;
+    padding:14px 16px;font-size:12.5px;color:var(--muted);line-height:1.8;
+  }
+  .changelog b{color:var(--ink)}
+  .changelog ul{margin:6px 0 0;padding-left:18px}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:0 0 22px;font-size:12.5px}
+  .legend span{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:20px;background:var(--panel);border:1px solid var(--grid);color:var(--muted)}
+  .dot{width:9px;height:9px;border-radius:50%;flex:none}
+
+  .diagram{background:var(--panel);border:1px solid var(--grid);border-radius:14px;padding:10px}
+
+  .footer-note{margin-top:18px;font-size:12.5px;color:var(--muted);line-height:1.7}
+  .footer-note b{color:var(--ink)}
+
+  svg text{font-family:inherit}
+  .box-title{font-weight:700;font-size:12.5px;fill:var(--ink)}
+  .box-sub{font-size:10px;fill:var(--muted)}
+  .tag{font-size:9px;font-weight:700;letter-spacing:.4px}
+  .zone-label{font-size:11px;fill:var(--muted);letter-spacing:1px;text-transform:uppercase}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Sơ đồ kiến trúc hệ thống mẫu — Hạ tầng on-premise/hybrid (SSIS)<span class="ver">v2</span></h1>
+    <p class="sub">Phiên bản cập nhật sau đánh giá điểm yếu: bổ sung dual-core switch, IDS/IPS, caching layer, HAProxy dự phòng, cách ly VLAN IoT/máy in, patch &amp; vulnerability scan, cost dashboard, RTO/RPO cho DR.</p>
+  </header>
+
+  <div class="changelog">
+    <b>Thay đổi so với v1:</b>
+    <ul>
+      <li><b style="color:var(--perf)">Network:</b> Core switch đơn → Dual-core switch (MLAG/Stack), loại bỏ single point of failure lớp mạng</li>
+      <li><b style="color:var(--sec)">Security:</b> Thêm IDS/IPS inline sau firewall; DMZ nâng cấp thành WAF + Reverse Proxy; tách riêng VLAN40 cho máy in/IoT không route trực tiếp sang Server VLAN</li>
+      <li><b style="color:var(--rel)">Reliability:</b> HAProxy từ 1 instance → Active/Passive (VRRP)</li>
+      <li><b style="color:var(--perf)">Performance:</b> Thêm Redis caching layer giảm tải cho VM dịch vụ</li>
+      <li><b style="color:var(--ops)">Operational:</b> Thêm khối Patch Management &amp; Vulnerability Scanning</li>
+      <li><b style="color:var(--cost)">Cost:</b> Thêm Cost Dashboard đo usage/VM, cảnh báo tài nguyên idle; storage có chính sách lifecycle tự động</li>
+      <li><b style="color:var(--rel)">DR:</b> Ghi rõ chỉ số RTO/RPO thay vì chỉ mô tả chung chung</li>
+    </ul>
+  </div>
+
+  <div class="legend">
+    <span><i class="dot" style="background:var(--sec)"></i>Security</span>
+    <span><i class="dot" style="background:var(--rel)"></i>Reliability</span>
+    <span><i class="dot" style="background:var(--perf)"></i>Performance</span>
+    <span><i class="dot" style="background:var(--cost)"></i>Cost Optimization</span>
+    <span><i class="dot" style="background:var(--ops)"></i>Operational Excellence</span>
+  </div>
+
+  <div class="diagram">
+    <svg viewBox="0 0 1160 1060" width="100%">
+      <defs>
+        <marker id="arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill="#5b7086"/>
+        </marker>
+        <marker id="arrowOps" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill="#a373e8"/>
+        </marker>
+        <marker id="arrowRel" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+          <path d="M0,0 L6,3 L0,6 Z" fill="#3fb27f"/>
+        </marker>
+      </defs>
+
+      <!-- INTERNET -->
+      <rect x="480" y="10" width="200" height="46" rx="10" fill="#0c1620" stroke="#3a4a5a"/>
+      <text x="580" y="38" text-anchor="middle" class="box-title">INTERNET</text>
+      <line x1="580" y1="56" x2="580" y2="96" stroke="#5b7086" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- FIREWALL + IDS/IPS -->
+      <rect x="340" y="98" width="220" height="58" rx="10" fill="#241417" stroke="var(--sec)" stroke-width="1.6"/>
+      <text x="356" y="116" class="tag" fill="var(--sec)">SECURITY</text>
+      <text x="450" y="138" text-anchor="middle" class="box-title">pfSense Firewall/VPN</text>
+      <text x="450" y="150" text-anchor="middle" class="box-sub">IPsec S2S · NAT · ACL</text>
+
+      <line x1="560" y1="127" x2="596" y2="127" stroke="#5b7086" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <rect x="600" y="98" width="220" height="58" rx="10" fill="#241417" stroke="var(--sec)" stroke-width="1.6"/>
+      <text x="616" y="116" class="tag" fill="var(--sec)">SECURITY (NEW)</text>
+      <text x="710" y="138" text-anchor="middle" class="box-title">IDS/IPS Inline (Suricata)</text>
+      <text x="710" y="150" text-anchor="middle" class="box-sub">Phát hiện &amp; chặn theo signature</text>
+
+      <line x1="580" y1="156" x2="580" y2="196" stroke="#5b7086" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- DMZ -->
+      <rect x="120" y="198" width="1000" height="100" rx="12" fill="#101a24" stroke="var(--sec)" stroke-dasharray="4 4"/>
+      <text x="140" y="216" class="zone-label" fill="var(--sec)">Vùng DMZ</text>
+
+      <rect x="260" y="230" width="260" height="55" rx="8" fill="#241417" stroke="var(--sec)"/>
+      <text x="390" y="250" text-anchor="middle" class="box-title">WAF + Reverse Proxy (Nginx)</text>
+      <text x="390" y="264" text-anchor="middle" class="box-sub">TLS termination · Lọc OWASP Top 10</text>
+
+      <rect x="560" y="230" width="260" height="55" rx="8" fill="#241417" stroke="var(--sec)"/>
+      <text x="690" y="250" text-anchor="middle" class="box-title">Bastion Host</text>
+      <text x="690" y="264" text-anchor="middle" class="box-sub">Truy cập quản trị từ xa · MFA</text>
+
+      <line x1="390" y1="285" x2="390" y2="332" stroke="#5b7086" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="690" y1="285" x2="690" y2="332" stroke="#5b7086" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- DUAL CORE SWITCH -->
+      <rect x="260" y="334" width="260" height="60" rx="10" fill="#101a24" stroke="var(--perf)" stroke-width="1.6"/>
+      <text x="276" y="352" class="tag" fill="var(--perf)">PERFORMANCE</text>
+      <text x="390" y="372" text-anchor="middle" class="box-title">Core Switch A</text>
+      <text x="390" y="386" text-anchor="middle" class="box-sub">Active</text>
+
+      <rect x="560" y="334" width="260" height="60" rx="10" fill="#101a24" stroke="var(--perf)" stroke-width="1.6"/>
+      <text x="576" y="352" class="tag" fill="var(--perf)">PERFORMANCE (NEW)</text>
+      <text x="690" y="372" text-anchor="middle" class="box-title">Core Switch B</text>
+      <text x="690" y="386" text-anchor="middle" class="box-sub">Active (MLAG)</text>
+
+      <line x1="520" y1="364" x2="560" y2="364" stroke="var(--perf)" stroke-width="2.5"/>
+      <text x="580" y="410" text-anchor="middle" class="box-sub">⇄ Stack Link / MLAG — loại bỏ single point of failure ở lớp mạng</text>
+
+      <text x="580" y="426" text-anchor="middle" class="box-sub">VLAN10-Server · VLAN20-Client · VLAN30-Mgmt · VLAN40-Printer/IoT (cách ly)</text>
+
+      <path d="M390,394 L390,438" fill="none" stroke="#5b7086" stroke-width="2" marker-end="url(#arrow)"/>
+      <path d="M690,394 L860,438" fill="none" stroke="#5b7086" stroke-width="2" marker-end="url(#arrow)"/>
+      <path d="M690,394 L1060,438" fill="none" stroke="#5b7086" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- COMPUTE CLUSTER -->
+      <rect x="120" y="440" width="620" height="240" rx="12" fill="#101a24" stroke="var(--rel)" stroke-dasharray="4 4"/>
+      <text x="140" y="458" class="zone-label" fill="var(--rel)">Cụm ảo hóa — VMware / XCP-ng (HA Pool)</text>
+      <text x="620" y="458" text-anchor="end" class="tag" fill="var(--rel)">RELIABILITY</text>
+
+      <rect x="140" y="472" width="150" height="55" rx="8" fill="#122019" stroke="var(--rel)"/>
+      <text x="215" y="494" text-anchor="middle" class="box-title" style="font-size:11px">Host ESXi-01</text>
+      <text x="215" y="508" text-anchor="middle" class="box-sub">Active</text>
+
+      <rect x="310" y="472" width="150" height="55" rx="8" fill="#122019" stroke="var(--rel)"/>
+      <text x="385" y="494" text-anchor="middle" class="box-title" style="font-size:11px">Host ESXi-02</text>
+      <text x="385" y="508" text-anchor="middle" class="box-sub">Active</text>
+
+      <rect x="480" y="472" width="150" height="55" rx="8" fill="#122019" stroke="var(--rel)"/>
+      <text x="555" y="494" text-anchor="middle" class="box-title" style="font-size:11px">Host ESXi-03</text>
+      <text x="555" y="508" text-anchor="middle" class="box-sub">HA Standby</text>
+
+      <line x1="215" y1="527" x2="215" y2="550" stroke="#3d4e5e" stroke-width="1.5"/>
+      <line x1="385" y1="527" x2="385" y2="550" stroke="#3d4e5e" stroke-width="1.5"/>
+      <line x1="555" y1="527" x2="555" y2="550" stroke="#3d4e5e" stroke-width="1.5"/>
+
+      <rect x="140" y="552" width="150" height="40" rx="6" fill="#0d1015" stroke="#3d4e5e"/>
+      <text x="215" y="576" text-anchor="middle" class="box-sub">VM: PowerSchool</text>
+
+      <rect x="310" y="552" width="150" height="40" rx="6" fill="#0d1015" stroke="#3d4e5e"/>
+      <text x="385" y="576" text-anchor="middle" class="box-sub">VM: PaperCut MF</text>
+
+      <rect x="480" y="552" width="150" height="40" rx="6" fill="#0d1015" stroke="#3d4e5e"/>
+      <text x="555" y="576" text-anchor="middle" class="box-sub">VM: Gitea / Jenkins</text>
+
+      <line x1="215" y1="592" x2="230" y2="606" stroke="#3d4e5e" stroke-width="1.2"/>
+      <line x1="385" y1="592" x2="415" y2="606" stroke="#3d4e5e" stroke-width="1.2"/>
+      <line x1="555" y1="592" x2="500" y2="606" stroke="#3d4e5e" stroke-width="1.2"/>
+
+      <rect x="140" y="608" width="180" height="46" rx="8" fill="#0c1620" stroke="var(--perf)" stroke-width="1.4"/>
+      <text x="156" y="622" class="tag" fill="var(--perf)">PERF (NEW)</text>
+      <text x="230" y="640" text-anchor="middle" class="box-title" style="font-size:11px">Redis Cache</text>
+      <text x="230" y="650" text-anchor="middle" class="box-sub">Session/Query cache</text>
+
+      <rect x="340" y="608" width="150" height="46" rx="8" fill="#0c1620" stroke="var(--rel)" stroke-width="1.4"/>
+      <text x="415" y="628" text-anchor="middle" class="box-title" style="font-size:11px">HAProxy (Active)</text>
+      <text x="415" y="642" text-anchor="middle" class="box-sub">LB nội bộ</text>
+
+      <rect x="500" y="608" width="150" height="46" rx="8" fill="#0c1620" stroke="var(--rel)" stroke-width="1.4"/>
+      <text x="575" y="628" text-anchor="middle" class="box-title" style="font-size:11px">HAProxy (Passive)</text>
+      <text x="575" y="642" text-anchor="middle" class="box-sub">Failover VRRP</text>
+
+      <line x1="490" y1="631" x2="500" y2="631" stroke="var(--rel)" stroke-width="2"/>
+      <text x="495" y="620" text-anchor="middle" class="box-sub" style="font-size:8.5px">VRRP</text>
+
+      <!-- MGMT ZONE -->
+      <rect x="760" y="440" width="220" height="240" rx="12" fill="#101a24" stroke="var(--sec)" stroke-dasharray="4 4"/>
+      <text x="780" y="458" class="zone-label" fill="var(--sec)">Vùng quản trị</text>
+
+      <rect x="780" y="472" width="180" height="42" rx="8" fill="#241417" stroke="var(--sec)"/>
+      <text x="870" y="490" text-anchor="middle" class="box-title" style="font-size:11px">AD/LDAP + RBAC</text>
+      <text x="870" y="503" text-anchor="middle" class="box-sub">Xác thực &amp; phân quyền</text>
+
+      <rect x="780" y="520" width="180" height="42" rx="8" fill="#241417" stroke="var(--sec)"/>
+      <text x="870" y="538" text-anchor="middle" class="box-title" style="font-size:11px">vCenter Server</text>
+      <text x="870" y="551" text-anchor="middle" class="box-sub">Quản lý cụm host</text>
+
+      <rect x="780" y="568" width="180" height="42" rx="8" fill="#171025" stroke="var(--ops)"/>
+      <text x="788" y="580" class="tag" fill="var(--ops)">OPS (NEW)</text>
+      <text x="870" y="600" text-anchor="middle" class="box-sub">Patch Mgmt &amp; Vulnerability Scan</text>
+
+      <rect x="780" y="616" width="180" height="42" rx="8" fill="#181026" stroke="var(--cost)"/>
+      <text x="788" y="628" class="tag" fill="var(--cost)">COST (NEW)</text>
+      <text x="870" y="648" text-anchor="middle" class="box-sub">Usage/VM · cảnh báo idle &gt;30 ngày</text>
+
+      <!-- IoT / PRINTER ISOLATED VLAN -->
+      <rect x="1000" y="440" width="140" height="120" rx="10" fill="#241417" stroke="var(--sec)" stroke-dasharray="3 3"/>
+      <text x="1010" y="458" class="tag" fill="var(--sec)">SECURITY (NEW)</text>
+      <text x="1070" y="480" text-anchor="middle" class="box-title" style="font-size:11px">VLAN40</text>
+      <text x="1070" y="495" text-anchor="middle" class="box-sub">Printer / IoT</text>
+      <text x="1070" y="510" text-anchor="middle" class="box-sub">PaperCut agents</text>
+      <text x="1070" y="528" text-anchor="middle" class="box-sub" style="font-size:9px">Cách ly — không route</text>
+      <text x="1070" y="540" text-anchor="middle" class="box-sub" style="font-size:9px">trực tiếp sang Server VLAN</text>
+
+      <!-- DOWN TO STORAGE -->
+      <line x1="385" y1="680" x2="385" y2="712" stroke="#5b7086" stroke-width="2" marker-end="url(#arrow)"/>
+      <line x1="870" y1="680" x2="840" y2="712" stroke="#5b7086" stroke-width="2" marker-end="url(#arrow)"/>
+
+      <!-- STORAGE -->
+      <rect x="150" y="712" width="450" height="90" rx="10" fill="#101a24" stroke="var(--rel)" stroke-width="1.6"/>
+      <text x="170" y="730" class="tag" fill="var(--rel)">RELIABILITY</text>
+      <text x="375" y="750" text-anchor="middle" class="box-title">TrueNAS / iSCSI SAN</text>
+      <text x="375" y="766" text-anchor="middle" class="box-sub">RAID · Snapshot theo lịch</text>
+      <text x="375" y="782" text-anchor="middle" class="box-sub" fill="var(--cost)">Lifecycle (NEW): tự động chuyển SSD→HDD sau 90 ngày</text>
+
+      <rect x="640" y="712" width="400" height="90" rx="10" fill="#101a24" stroke="var(--rel)" stroke-width="1.6"/>
+      <text x="660" y="730" class="tag" fill="var(--rel)">RELIABILITY</text>
+      <text x="840" y="750" text-anchor="middle" class="box-title">Backup Server (Veeam/rsync)</text>
+      <text x="840" y="766" text-anchor="middle" class="box-sub">Backup định kỳ + kiểm tra restore</text>
+      <text x="840" y="782" text-anchor="middle" class="box-sub">Bản sao off-site cho DR</text>
+
+      <!-- MONITORING -->
+      <rect x="150" y="822" width="890" height="90" rx="12" fill="#171025" stroke="var(--ops)" stroke-width="1.6"/>
+      <text x="170" y="840" class="tag" fill="var(--ops)">OPERATIONAL EXCELLENCE</text>
+      <text x="595" y="860" text-anchor="middle" class="box-title">Zabbix Server + Grafana Dashboard</text>
+      <text x="595" y="876" text-anchor="middle" class="box-sub">Giám sát network, host, VM, dịch vụ, IDS/IPS · Alert email/Telegram</text>
+      <text x="595" y="892" text-anchor="middle" class="box-sub">Runbook &amp; phân công trực sự cố đính kèm tài liệu vận hành</text>
+
+      <path d="M300,822 C300,720 280,600 250,527" fill="none" stroke="var(--ops)" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#arrowOps)"/>
+      <path d="M470,822 C470,720 440,600 415,608" fill="none" stroke="var(--ops)" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#arrowOps)"/>
+      <path d="M650,822 C650,720 600,600 555,527" fill="none" stroke="var(--ops)" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#arrowOps)"/>
+      <path d="M800,822 C800,720 780,600 690,394" fill="none" stroke="var(--ops)" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#arrowOps)"/>
+      <path d="M900,822 C920,720 920,600 870,658" fill="none" stroke="var(--ops)" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#arrowOps)"/>
+      <path d="M1000,822 C1030,720 1060,620 1070,560" fill="none" stroke="var(--ops)" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#arrowOps)"/>
+      <path d="M380,822 C380,790 375,800 375,802" fill="none" stroke="var(--ops)" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#arrowOps)"/>
+      <path d="M780,822 C800,800 820,795 840,802" fill="none" stroke="var(--ops)" stroke-width="1.2" stroke-dasharray="3 4" marker-end="url(#arrowOps)"/>
+
+      <!-- DR SITE -->
+      <rect x="150" y="942" width="890" height="90" rx="10" fill="#101a24" stroke="var(--rel)" stroke-dasharray="4 4"/>
+      <text x="170" y="960" class="zone-label" fill="var(--rel)">Site dự phòng (DR) — ngoài campus chính</text>
+      <text x="595" y="982" text-anchor="middle" class="box-sub">Replication snapshot storage + backup off-site · Kích hoạt khi có sự cố tại site chính</text>
+      <text x="595" y="1000" text-anchor="middle" class="box-title" fill="var(--rel)" style="font-size:12px">RTO: 4 giờ &nbsp;|&nbsp; RPO: 1 giờ (NEW — theo chu kỳ backup)</text>
+
+      <path d="M375,802 C375,870 500,910 500,942" fill="none" stroke="var(--rel)" stroke-width="1.4" stroke-dasharray="3 4" marker-end="url(#arrowRel)"/>
+      <path d="M840,802 C840,870 700,910 700,942" fill="none" stroke="var(--rel)" stroke-width="1.4" stroke-dasharray="3 4" marker-end="url(#arrowRel)"/>
+    </svg>
+  </div>
+
+  <p class="footer-note">
+    <b>Cách đọc sơ đồ:</b> nhãn <b>(NEW)</b> đánh dấu các thành phần vừa được bổ sung so với v1. Đường liền = traffic chính; đường đứt tím = luồng giám sát; đường đứt xanh lá = backup/replication sang DR.<br>
+    Đây vẫn là bản mẫu tổng quát — khi áp dụng thực tế cho SSIS, cần điền IP/VLAN ID cụ thể và xác nhận lại RTO/RPO theo yêu cầu nghiệp vụ thực (PowerSchool/PaperCut có thể cần RPO ngắn hơn).
+  </p>
+</div>
+</body>
+</html>
