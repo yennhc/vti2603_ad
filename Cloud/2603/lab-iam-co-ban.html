@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lab IAM Cơ Bản - AWS Identity and Access Management</title>
+<style>
+  :root {
+    --navy-900: #0a0e1a;
+    --navy-800: #0f1524;
+    --navy-700: #151d31;
+    --navy-600: #1c2640;
+    --navy-500: #263252;
+    --amber-400: #fbbf24;
+    --amber-500: #f59e0b;
+    --amber-600: #d97706;
+    --text-primary: #e8ecf5;
+    --text-secondary: #9aa5bd;
+    --text-muted: #6b7593;
+    --green: #34d399;
+    --red: #f87171;
+    --blue: #60a5fa;
+    --border: #2a3557;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--navy-900);
+    color: var(--text-primary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.65;
+    padding-bottom: 80px;
+  }
+  .progress-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background: var(--navy-800);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .progress-track {
+    flex: 1;
+    height: 8px;
+    background: var(--navy-600);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--amber-600), var(--amber-400));
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 5px;
+  }
+  .progress-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    font-weight: 600;
+  }
+  .container { max-width: 880px; margin: 0 auto; padding: 30px 20px; }
+  header.hero {
+    text-align: center;
+    padding: 20px 0 36px;
+  }
+  header.hero .badge {
+    display: inline-block;
+    background: var(--navy-700);
+    border: 1px solid var(--amber-600);
+    color: var(--amber-400);
+    padding: 4px 14px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    margin-bottom: 14px;
+  }
+  header.hero h1 {
+    font-size: 30px;
+    margin: 0 0 10px;
+    background: linear-gradient(90deg, var(--text-primary), var(--amber-400));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  header.hero p { color: var(--text-secondary); font-size: 15px; max-width: 600px; margin: 0 auto; }
+
+  section.card {
+    background: var(--navy-800);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    margin-bottom: 18px;
+    overflow: hidden;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 22px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .section-header:hover { background: var(--navy-700); }
+  .section-title { display: flex; align-items: center; gap: 12px; font-size: 17px; font-weight: 700; }
+  .section-number {
+    background: var(--navy-600);
+    color: var(--amber-400);
+    width: 30px; height: 30px;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800;
+    flex-shrink: 0;
+  }
+  .chevron { transition: transform 0.25s ease; color: var(--text-muted); }
+  .section-header.open .chevron { transform: rotate(180deg); }
+  .section-body {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.35s ease;
+    padding: 0 22px;
+  }
+  .section-body.open { padding: 0 22px 22px; }
+  .section-body-inner > *:first-child { margin-top: 0; }
+
+  h3 { color: var(--amber-400); font-size: 16px; margin: 22px 0 10px; }
+  h3:first-child { margin-top: 0; }
+  p { color: var(--text-secondary); font-size: 14.5px; }
+  ul, ol { color: var(--text-secondary); font-size: 14.5px; padding-left: 20px; }
+  li { margin-bottom: 6px; }
+  strong { color: var(--text-primary); }
+
+  .analogy {
+    background: var(--navy-700);
+    border-left: 3px solid var(--blue);
+    padding: 12px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    margin: 14px 0;
+    color: var(--text-secondary);
+  }
+  .analogy b { color: var(--blue); }
+
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 13.5px; }
+  th, td { padding: 10px 12px; border: 1px solid var(--border); text-align: left; }
+  th { background: var(--navy-600); color: var(--amber-400); font-weight: 700; }
+  td { color: var(--text-secondary); }
+  tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+
+  .callout {
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin: 16px 0;
+    font-size: 14px;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .callout .icon { font-size: 18px; flex-shrink: 0; }
+  .callout-tip { background: rgba(52, 211, 153, 0.08); border: 1px solid rgba(52, 211, 153, 0.3); }
+  .callout-tip .icon { color: var(--green); }
+  .callout-danger { background: rgba(248, 113, 113, 0.08); border: 1px solid rgba(248, 113, 113, 0.3); }
+  .callout-danger .icon { color: var(--red); }
+  .callout-cost { background: rgba(251, 191, 36, 0.08); border: 1px solid rgba(251, 191, 36, 0.3); }
+  .callout-cost .icon { color: var(--amber-400); }
+  .callout-security { background: rgba(96, 165, 250, 0.08); border: 1px solid rgba(96, 165, 250, 0.3); }
+  .callout-security .icon { color: var(--blue); }
+  .callout p { margin: 0; color: var(--text-secondary); }
+
+  .scenario {
+    background: var(--navy-700);
+    border: 1px dashed var(--amber-600);
+    border-radius: 10px;
+    padding: 16px;
+    margin: 16px 0;
+  }
+  .scenario h4 { margin: 0 0 8px; color: var(--amber-400); font-size: 14px; }
+
+  .step {
+    background: var(--navy-700);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 14px 0;
+  }
+  .step-title { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .step-check {
+    width: 20px; height: 20px;
+    border: 2px solid var(--text-muted);
+    border-radius: 5px;
+    flex-shrink: 0;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+  .step-check.checked {
+    background: var(--amber-500);
+    border-color: var(--amber-500);
+  }
+  .step-check.checked::after { content: "✓"; color: var(--navy-900); font-weight: 900; font-size: 13px; }
+  .step-title span.label { font-weight: 700; font-size: 14.5px; }
+  .step.done { opacity: 0.6; }
+  .step.done .label { text-decoration: line-through; }
+
+  .code-block {
+    position: relative;
+    background: #060a12;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 10px 0;
+  }
+  .code-block pre {
+    margin: 0;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    font-size: 13px;
+    color: #d8e0f5;
+  }
+  .copy-btn {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: var(--navy-600);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+  }
+  .copy-btn:hover { background: var(--navy-500); color: var(--text-primary); }
+  .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+  .quiz-q {
+    background: var(--navy-700);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin: 14px 0;
+  }
+  .quiz-q p.question { color: var(--text-primary); font-weight: 700; font-size: 14.5px; margin: 0 0 12px; }
+  .quiz-opt {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: var(--navy-600);
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    padding: 10px 14px;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    font-size: 13.5px;
+    transition: all 0.15s;
+  }
+  .quiz-opt:hover { border-color: var(--amber-500); }
+  .quiz-opt.correct { background: rgba(52,211,153,0.15); border-color: var(--green); color: var(--text-primary); }
+  .quiz-opt.wrong { background: rgba(248,113,113,0.15); border-color: var(--red); color: var(--text-primary); }
+  .quiz-opt:disabled { cursor: default; }
+  .quiz-explain {
+    margin-top: 10px;
+    font-size: 13.5px;
+    color: var(--text-secondary);
+    background: var(--navy-800);
+    padding: 10px 12px;
+    border-radius: 8px;
+    display: none;
+  }
+  .quiz-explain.show { display: block; }
+
+  .quiz-score {
+    text-align: center;
+    padding: 20px;
+    font-size: 15px;
+    color: var(--amber-400);
+    font-weight: 700;
+  }
+
+  footer {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 12.5px;
+    padding: 30px 0 10px;
+  }
+</style>
+</head>
+<body>
+
+<div class="progress-bar">
+  <div class="progress-label" id="progressLabel">0% hoàn thành</div>
+  <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+</div>
+
+<div class="container">
+  <header class="hero">
+    <div class="badge">LAB CƠ BẢN · DÀNH CHO NGƯỜI MỚI</div>
+    <h1>AWS IAM — Identity and Access Management</h1>
+    <p>Hiểu về User, Group, Role, Policy — và thực hành tạo quyền truy cập an toàn đầu tiên trên AWS.</p>
+  </header>
+
+  <!-- SECTION 1: LÝ THUYẾT TỔNG QUAN -->
+  <section class="card">
+    <div class="section-header open" onclick="toggleSection(this)">
+      <div class="section-title"><div class="section-number">1</div>IAM là gì?</div>
+      <div class="chevron">▼</div>
+    </div>
+    <div class="section-body open">
+      <div class="section-body-inner">
+        <p>IAM (Identity and Access Management) là dịch vụ giúp bạn kiểm soát <strong>ai được xác thực (authentication)</strong> và <strong>ai được cấp quyền (authorization)</strong> để sử dụng resource trong tài khoản AWS.</p>
+
+        <div class="analogy">
+          <b>Ví dụ đời thường:</b> Hãy tưởng tượng AWS account là một tòa nhà văn phòng. Root user là chủ tòa nhà, có chìa khóa vạn năng mở mọi cửa. IAM User là nhân viên được phát thẻ ra vào riêng. IAM Group là "phòng ban" — gán thẻ theo phòng ban thì đỡ phải cấp quyền cho từng người. IAM Role giống như thẻ khách mời tạm thời — mượn quyền trong một khoảng thời gian rồi trả lại.
+        </div>
+
+        <h3>4 thành phần cốt lõi</h3>
+        <table>
+          <tr><th>Thành phần</th><th>Là gì</th><th>Dùng khi nào</th></tr>
+          <tr><td><strong>User</strong></td><td>Danh tính đại diện cho 1 người/ứng dụng cụ thể, có thể có mật khẩu + access key riêng</td><td>Nhân viên, admin cần đăng nhập Console/CLI</td></tr>
+          <tr><td><strong>Group</strong></td><td>Tập hợp nhiều Users, gán Policy 1 lần cho cả nhóm</td><td>Quản lý nhiều user có cùng vai trò (vd: Developers, Finance)</td></tr>
+          <tr><td><strong>Role</strong></td><td>Danh tính không gắn cố định, được "assume" (mượn) tạm thời, không có mật khẩu/access key cố định</td><td>EC2/Lambda cần gọi API, cross-account access</td></tr>
+          <tr><td><strong>Policy</strong></td><td>Văn bản JSON định nghĩa quyền — Allow/Deny hành động nào trên resource nào</td><td>Gắn vào User, Group hoặc Role để cấp quyền</td></tr>
+        </table>
+
+        <h3>Root User vs IAM User</h3>
+        <div class="callout callout-danger">
+          <div class="icon">⚠</div>
+          <p><strong>Root user</strong> (tài khoản tạo khi đăng ký AWS) có toàn quyền tuyệt đối, không thể giới hạn bằng policy thông thường. Best practice: <strong>không dùng root cho công việc hàng ngày</strong> — chỉ dùng cho vài tác vụ đặc biệt (đổi plan support, đóng account...). Luôn bật MFA cho root ngay khi tạo account.</p>
+        </div>
+
+        <h3>Nguyên tắc đánh giá quyền (Policy Evaluation)</h3>
+        <p>Khi một request được gửi đến AWS, hệ thống đánh giá theo thứ tự:</p>
+        <ol>
+          <li><strong>Explicit Deny</strong> — nếu có deny rõ ràng ở bất kỳ đâu → chặn ngay, không cần xét tiếp</li>
+          <li><strong>SCP</strong> (Service Control Policy, ở cấp Organization)</li>
+          <li><strong>Resource-based policy</strong> (vd: S3 bucket policy)</li>
+          <li><strong>Identity-based policy</strong> (gắn vào User/Group/Role)</li>
+          <li><strong>Permission Boundary</strong> (nếu có)</li>
+          <li>Nếu không có Allow nào khớp → <strong>Implicit Deny</strong> (mặc định là từ chối)</li>
+        </ol>
+
+        <div class="callout callout-tip">
+          <div class="icon">💡</div>
+          <p><strong>Nguyên tắc vàng: Least Privilege</strong> — chỉ cấp đúng quyền cần thiết để hoàn thành công việc, không hơn. Dễ mở rộng quyền sau này hơn là thu hồi quyền đã cấp dư thừa.</p>
+        </div>
+
+        <div class="callout callout-cost">
+          <div class="icon">💰</div>
+          <p>IAM là dịch vụ <strong>hoàn toàn miễn phí</strong>. Bạn chỉ trả tiền cho các resource (EC2, S3...) mà identity đó thao tác, không trả tiền cho việc tạo User/Group/Role/Policy.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: TÌNH HUỐNG THỰC TẾ -->
+  <section class="card">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><div class="section-number">2</div>Tình huống thực tế</div>
+      <div class="chevron">▼</div>
+    </div>
+    <div class="section-body">
+      <div class="section-body-inner">
+        <div class="scenario">
+          <h4>🏢 Bối cảnh</h4>
+          <p style="margin:0;">Bạn là admin mới của một công ty startup vừa đăng ký AWS. Team có 1 developer tên <strong>Minh</strong> cần quyền xem (read-only) các bucket S3 để debug ứng dụng, nhưng <strong>không được phép</strong> xóa hay sửa dữ liệu production.</p>
+        </div>
+
+        <p>Cách tiếp cận đúng theo IAM best practice:</p>
+        <ol>
+          <li>Không dùng root account để tạo user cho Minh</li>
+          <li>Tạo IAM User riêng cho Minh, đặt tên rõ ràng (vd: <code>minh-dev</code>)</li>
+          <li>Tạo Group <code>Developers-ReadOnly</code>, gắn policy <code>AmazonS3ReadOnlyAccess</code></li>
+          <li>Thêm Minh vào group đó thay vì gắn policy trực tiếp vào user</li>
+          <li>Bật MFA cho tài khoản của Minh</li>
+        </ol>
+
+        <div class="callout callout-security">
+          <div class="icon">🔒</div>
+          <p>Gắn policy vào <strong>Group</strong> thay vì từng User giúp việc quản lý dễ dàng hơn nhiều — khi có thêm developer mới, chỉ cần thêm vào group, không cần cấu hình lại policy.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 3: THỰC HÀNH CLI -->
+  <section class="card">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><div class="section-number">3</div>Thực hành: Tạo User, Group, Policy</div>
+      <div class="chevron">▼</div>
+    </div>
+    <div class="section-body">
+      <div class="section-body-inner">
+        <p>Yêu cầu: đã cài <code>aws cli</code> và cấu hình credentials có quyền quản trị IAM (vd: chạy bằng user admin ban đầu, region <code>ap-southeast-1</code>).</p>
+
+        <div class="step" data-step="1">
+          <div class="step-title">
+            <div class="step-check" onclick="toggleStep(this)"></div>
+            <span class="label">Bước 1 — Tạo IAM Group cho Developers</span>
+          </div>
+          <p>Tạo group trước để chuẩn bị gắn policy.</p>
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre>aws iam create-group --group-name Developers-ReadOnly</pre>
+          </div>
+        </div>
+
+        <div class="step" data-step="2">
+          <div class="step-title">
+            <div class="step-check" onclick="toggleStep(this)"></div>
+            <span class="label">Bước 2 — Gắn Policy quyền đọc S3 vào Group</span>
+          </div>
+          <p>Sử dụng managed policy có sẵn của AWS, không cần tự viết JSON.</p>
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre>aws iam attach-group-policy \
+  --group-name Developers-ReadOnly \
+  --policy-arn arn:aws:iam::aws:policy/AmazonS3ReadOnlyAccess</pre>
+          </div>
+        </div>
+
+        <div class="step" data-step="3">
+          <div class="step-title">
+            <div class="step-check" onclick="toggleStep(this)"></div>
+            <span class="label">Bước 3 — Tạo IAM User cho Minh</span>
+          </div>
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre>aws iam create-user --user-name minh-dev</pre>
+          </div>
+        </div>
+
+        <div class="step" data-step="4">
+          <div class="step-title">
+            <div class="step-check" onclick="toggleStep(this)"></div>
+            <span class="label">Bước 4 — Thêm User vào Group</span>
+          </div>
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre>aws iam add-user-to-group \
+  --user-name minh-dev \
+  --group-name Developers-ReadOnly</pre>
+          </div>
+        </div>
+
+        <div class="step" data-step="5">
+          <div class="step-title">
+            <div class="step-check" onclick="toggleStep(this)"></div>
+            <span class="label">Bước 5 — Tạo Access Key để test qua CLI</span>
+          </div>
+          <p>Access key dùng để user đăng nhập qua CLI/SDK (khác với mật khẩu Console).</p>
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre>aws iam create-access-key --user-name minh-dev</pre>
+          </div>
+          <div class="callout callout-danger">
+            <div class="icon">⚠</div>
+            <p>Kết quả trả về <code>AccessKeyId</code> và <code>SecretAccessKey</code> — <strong>SecretAccessKey chỉ hiển thị 1 lần duy nhất</strong>, hãy lưu lại ngay (vd: AWS Secrets Manager hoặc password manager), không lưu trong code hay commit lên Git.</p>
+          </div>
+        </div>
+
+        <div class="step" data-step="6">
+          <div class="step-title">
+            <div class="step-check" onclick="toggleStep(this)"></div>
+            <span class="label">Bước 6 — Kiểm tra quyền vừa cấp</span>
+          </div>
+          <p>Liệt kê các group mà user thuộc về, và các policy gắn vào group đó.</p>
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre>aws iam list-groups-for-user --user-name minh-dev
+
+aws iam list-attached-group-policies --group-name Developers-ReadOnly</pre>
+          </div>
+        </div>
+
+        <div class="step" data-step="7">
+          <div class="step-title">
+            <div class="step-check" onclick="toggleStep(this)"></div>
+            <span class="label">Bước 7 — Mô phỏng quyền trước khi test thật (tùy chọn, an toàn hơn)</span>
+          </div>
+          <p><code>simulate-principal-policy</code> giúp kiểm tra user có được phép thực hiện 1 action cụ thể hay không, mà không cần thực sự chạy lệnh đó.</p>
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre>aws iam simulate-principal-policy \
+  --policy-source-arn arn:aws:iam::&lt;ACCOUNT_ID&gt;:user/minh-dev \
+  --action-names s3:GetObject s3:DeleteObject \
+  --resource-arns arn:aws:s3:::ten-bucket-cua-ban/*</pre>
+          </div>
+          <p>Kết quả mong đợi: <code>s3:GetObject</code> → <strong>allowed</strong>, <code>s3:DeleteObject</code> → <strong>implicitDeny</strong> (vì policy chỉ cho ReadOnly).</p>
+        </div>
+
+        <div class="callout callout-tip">
+          <div class="icon">🧹</div>
+          <p><strong>Dọn dẹp sau khi lab xong</strong> (nếu chỉ để thực hành): xóa access key bằng <code>aws iam delete-access-key</code>, gỡ user khỏi group bằng <code>remove-user-from-group</code>, rồi <code>delete-user</code> và <code>delete-group</code> để tránh để lại tài nguyên thừa.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: MFA & PASSWORD POLICY -->
+  <section class="card">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><div class="section-number">4</div>Bảo mật: MFA & Password Policy</div>
+      <div class="chevron">▼</div>
+    </div>
+    <div class="section-body">
+      <div class="section-body-inner">
+        <h3>MFA (Multi-Factor Authentication)</h3>
+        <p>Yêu cầu thêm 1 mã xác thực (từ app như Google Authenticator, hoặc thiết bị phần cứng) ngoài mật khẩu khi đăng nhập.</p>
+        <div class="callout callout-security">
+          <div class="icon">🔒</div>
+          <p>Luôn bật MFA cho <strong>root user</strong> và các IAM User có quyền cao (admin). Có thể ép buộc bằng policy: chỉ cho phép thao tác nếu <code>aws:MultiFactorAuthPresent = true</code>.</p>
+        </div>
+
+        <h3>Account Password Policy</h3>
+        <p>Thiết lập quy tắc mật khẩu áp dụng cho toàn bộ IAM User trong account (độ dài tối thiểu, yêu cầu ký tự đặc biệt, thời hạn đổi mật khẩu...).</p>
+        <div class="code-block">
+          <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+          <pre>aws iam update-account-password-policy \
+  --minimum-password-length 12 \
+  --require-symbols \
+  --require-numbers \
+  --require-uppercase-characters \
+  --max-password-age 90</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 5: QUIZ -->
+  <section class="card">
+    <div class="section-header" onclick="toggleSection(this)">
+      <div class="section-title"><div class="section-number">5</div>Quiz kiểm tra kiến thức</div>
+      <div class="chevron">▼</div>
+    </div>
+    <div class="section-body">
+      <div class="section-body-inner" id="quizContainer">
+
+        <div class="quiz-q" data-qid="1">
+          <p class="question">1. Đâu là best practice khi công việc hàng ngày cần thao tác trên AWS?</p>
+          <button class="quiz-opt" onclick="answerQuiz(this, false)">Luôn dùng root user vì có toàn quyền</button>
+          <button class="quiz-opt" onclick="answerQuiz(this, true)">Tạo IAM User riêng, chỉ dùng root cho vài tác vụ đặc biệt</button>
+          <button class="quiz-opt" onclick="answerQuiz(this, false)">Chia sẻ chung 1 access key cho cả team</button>
+          <div class="quiz-explain">✅ Root user có toàn quyền tuyệt đối và không thể giới hạn bằng policy — nếu bị lộ sẽ rất nguy hiểm. Luôn tạo IAM User riêng cho công việc hàng ngày và bật MFA cho root.</div>
+        </div>
+
+        <div class="quiz-q" data-qid="2">
+          <p class="question">2. Nếu một User vừa có Allow từ Group Policy, vừa có Explicit Deny từ một Policy khác gắn trực tiếp, kết quả cuối cùng là gì?</p>
+          <button class="quiz-opt" onclick="answerQuiz(this, false)">Allow thắng vì được gắn từ Group</button>
+          <button class="quiz-opt" onclick="answerQuiz(this, true)">Deny luôn thắng, bất kể Allow ở đâu</button>
+          <button class="quiz-opt" onclick="answerQuiz(this, false)">AWS sẽ báo lỗi xung đột policy</button>
+          <div class="quiz-explain">✅ Explicit Deny luôn được ưu tiên cao nhất trong quá trình đánh giá policy của AWS, ghi đè mọi Allow khác.</div>
+        </div>
+
+        <div class="quiz-q" data-qid="3">
+          <p class="question">3. IAM Role khác IAM User chủ yếu ở điểm nào?</p>
+          <button class="quiz-opt" onclick="answerQuiz(this, false)">Role rẻ hơn User</button>
+          <button class="quiz-opt" onclick="answerQuiz(this, true)">Role được "assume" tạm thời, không có access key cố định như User</button>
+          <button class="quiz-opt" onclick="answerQuiz(this, false)">Role chỉ dùng được cho S3</button>
+          <div class="quiz-explain">✅ Role không gắn cố định với một danh tính — nó được các entity (EC2, Lambda, user khác, tài khoản khác) "mượn" tạm thời qua STS AssumeRole, sinh ra credentials có thời hạn.</div>
+        </div>
+
+        <div class="quiz-q" data-qid="4">
+          <p class="question">4. Gắn Policy vào Group thay vì từng User riêng lẻ mang lại lợi ích gì?</p>
+          <button class="quiz-opt" onclick="answerQuiz(this, false)">Giúp user có nhiều quyền hơn</button>
+          <button class="quiz-opt" onclick="answerQuiz(this, true)">Dễ quản lý — thêm/bớt user khỏi group mà không cần cấu hình lại policy</button>
+          <button class="quiz-opt" onclick="answerQuiz(this, false)">Bắt buộc phải làm vậy, AWS không cho gắn Policy trực tiếp vào User</button>
+          <div class="quiz-explain">✅ Đây là best practice quản lý quyền theo vai trò (role-based), giúp việc onboard/offboard nhân sự đơn giản hơn nhiều.</div>
+        </div>
+
+        <div class="quiz-q" data-qid="5">
+          <p class="question">5. Nếu một User không có bất kỳ Policy nào cho phép hành động cụ thể, kết quả mặc định là gì?</p>
+          <button class="quiz-opt" onclick="answerQuiz(this, true)">Implicit Deny — mặc định từ chối</button>
+          <button class="quiz-opt" onclick="answerQuiz(this, false)">Implicit Allow — mặc định cho phép</button>
+          <button class="quiz-opt" onclick="answerQuiz(this, false)">Tùy thuộc vào region</button>
+          <div class="quiz-explain">✅ AWS IAM mặc định là "deny toàn bộ" — mọi hành động phải có Allow rõ ràng thì mới được thực hiện.</div>
+        </div>
+
+        <div class="quiz-score" id="quizScore" style="display:none;"></div>
+      </div>
+    </div>
+  </section>
+
+  <footer>Lab thực hành AWS IAM · Region mẫu: ap-southeast-1 · Tiến trình được lưu tự động trên trình duyệt này</footer>
+</div>
+
+<script>
+  // ---- Section toggle ----
+  function toggleSection(header) {
+    header.classList.toggle('open');
+    const body = header.nextElementSibling;
+    body.classList.toggle('open');
+    if (body.classList.contains('open')) {
+      body.style.maxHeight = body.scrollHeight + 60 + 'px';
+    } else {
+      body.style.maxHeight = '0';
+    }
+    saveState();
+  }
+
+  // Init open sections properly
+  document.querySelectorAll('.section-body.open').forEach(b => {
+    b.style.maxHeight = b.scrollHeight + 60 + 'px';
+  });
+
+  // ---- Step checkbox ----
+  function toggleStep(el) {
+    el.classList.toggle('checked');
+    el.closest('.step').classList.toggle('done');
+    updateProgress();
+    saveState();
+  }
+
+  // ---- Copy code ----
+  function copyCode(btn) {
+    const code = btn.nextElementSibling.innerText;
+    navigator.clipboard.writeText(code).then(() => {
+      btn.textContent = 'Đã copy!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+    });
+  }
+
+  // ---- Progress bar ----
+  function updateProgress() {
+    const steps = document.querySelectorAll('.step-check');
+    const checked = document.querySelectorAll('.step-check.checked');
+    const quizAnswered = document.querySelectorAll('.quiz-q.answered').length;
+    const totalQuiz = document.querySelectorAll('.quiz-q').length;
+    const totalItems = steps.length + totalQuiz;
+    const doneItems = checked.length + quizAnswered;
+    const pct = totalItems ? Math.round((doneItems / totalItems) * 100) : 0;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = pct + '% hoàn thành';
+  }
+
+  // ---- Quiz ----
+  let quizScoreCount = 0;
+  function answerQuiz(btn, isCorrect) {
+    const qDiv = btn.closest('.quiz-q');
+    if (qDiv.classList.contains('answered')) return;
+    qDiv.classList.add('answered');
+    const opts = qDiv.querySelectorAll('.quiz-opt');
+    opts.forEach(o => o.disabled = true);
+    if (isCorrect) {
+      btn.classList.add('correct');
+      quizScoreCount++;
+    } else {
+      btn.classList.add('wrong');
+      qDiv.querySelectorAll('.quiz-opt').forEach((o, i) => {
+        // find and mark the correct one green too
+      });
+    }
+    qDiv.querySelector('.quiz-explain').classList.add('show');
+    checkQuizComplete();
+    updateProgress();
+    saveState();
+  }
+
+  function checkQuizComplete() {
+    const total = document.querySelectorAll('.quiz-q').length;
+    const answered = document.querySelectorAll('.quiz-q.answered').length;
+    if (answered === total) {
+      const scoreDiv = document.getElementById('quizScore');
+      scoreDiv.style.display = 'block';
+      scoreDiv.textContent = `🎉 Bạn đạt ${quizScoreCount}/${total} câu đúng!`;
+    }
+  }
+
+  // ---- localStorage persistence ----
+  function saveState() {
+    const state = {
+      steps: Array.from(document.querySelectorAll('.step')).map(s => s.classList.contains('done')),
+      sections: Array.from(document.querySelectorAll('.section-header')).map(h => h.classList.contains('open'))
+    };
+    try { localStorage.setItem('iam-lab-basic-state', JSON.stringify(state)); } catch(e) {}
+  }
+
+  function loadState() {
+    let state;
+    try { state = JSON.parse(localStorage.getItem('iam-lab-basic-state')); } catch(e) {}
+    if (!state) { updateProgress(); return; }
+    const steps = document.querySelectorAll('.step');
+    steps.forEach((s, i) => {
+      if (state.steps && state.steps[i]) {
+        s.classList.add('done');
+        s.querySelector('.step-check').classList.add('checked');
+      }
+    });
+    updateProgress();
+  }
+
+  loadState();
+</script>
+
+</body>
+</html>

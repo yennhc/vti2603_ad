@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AWS VPC — Khái niệm cốt lõi | Lab tương tác</title>
+<style>
+  :root {
+    --navy-900: #0a0e1a;
+    --navy-800: #0f1524;
+    --navy-700: #151d30;
+    --navy-600: #1c2540;
+    --navy-500: #263252;
+    --amber-500: #f5a623;
+    --amber-400: #ffb84d;
+    --amber-300: #ffd280;
+    --text-primary: #e8ecf4;
+    --text-secondary: #a8b2c8;
+    --text-muted: #6b7690;
+    --green-500: #3ecf8e;
+    --red-500: #ef5f5f;
+    --blue-500: #4d9fff;
+    --border-color: #2a3352;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    background: var(--navy-900);
+    color: var(--text-primary);
+    line-height: 1.65;
+    padding-bottom: 60px;
+  }
+  .progress-wrap {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--navy-800);
+    border-bottom: 1px solid var(--border-color);
+    padding: 10px 20px;
+  }
+  .progress-bar-outer {
+    max-width: 900px; margin: 0 auto;
+    background: var(--navy-600);
+    border-radius: 20px;
+    height: 10px;
+    overflow: hidden;
+  }
+  .progress-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, var(--amber-500), var(--amber-300));
+    width: 0%;
+    transition: width 0.4s ease;
+  }
+  .progress-label {
+    max-width: 900px; margin: 6px auto 0;
+    font-size: 12.5px; color: var(--text-secondary);
+    display: flex; justify-content: space-between;
+  }
+  .container { max-width: 900px; margin: 0 auto; padding: 30px 20px; }
+  header.hero {
+    text-align: center;
+    padding: 20px 10px 40px;
+  }
+  header.hero h1 {
+    font-size: 2rem;
+    background: linear-gradient(90deg, var(--amber-400), var(--amber-300));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    margin-bottom: 10px;
+  }
+  header.hero p { color: var(--text-secondary); font-size: 1.05rem; }
+  .badge-row { display: flex; gap: 10px; justify-content: center; margin-top: 16px; flex-wrap: wrap; }
+  .badge {
+    background: var(--navy-600); border: 1px solid var(--border-color);
+    padding: 5px 14px; border-radius: 20px; font-size: 12.5px; color: var(--amber-300);
+  }
+  section.card {
+    background: var(--navy-800);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 18px 22px;
+    cursor: pointer;
+    user-select: none;
+    background: var(--navy-700);
+  }
+  .card-header:hover { background: var(--navy-600); }
+  .card-header h2 {
+    font-size: 1.15rem; color: var(--amber-400);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .chevron { transition: transform 0.3s; color: var(--text-muted); font-size: 14px; }
+  .card.collapsed .chevron { transform: rotate(-90deg); }
+  .card-body {
+    padding: 22px;
+    max-height: 5000px;
+    overflow: hidden;
+    transition: max-height 0.4s ease, padding 0.4s ease;
+  }
+  .card.collapsed .card-body {
+    max-height: 0;
+    padding-top: 0; padding-bottom: 0;
+  }
+  .check-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 6px 0; cursor: pointer;
+  }
+  .check-item input { margin-top: 4px; accent-color: var(--amber-500); width: 16px; height: 16px; cursor: pointer; }
+  p { margin-bottom: 12px; color: var(--text-secondary); }
+  strong { color: var(--text-primary); }
+  h3 { color: var(--amber-300); font-size: 1.02rem; margin: 18px 0 8px; }
+  .analogy {
+    background: var(--navy-600);
+    border-left: 3px solid var(--amber-500);
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 14px 0;
+    font-size: 0.95rem;
+  }
+  .analogy .tag { color: var(--amber-400); font-weight: 600; font-size: 0.85rem; }
+  table {
+    width: 100%; border-collapse: collapse; margin: 14px 0;
+    font-size: 0.92rem;
+  }
+  th, td {
+    padding: 10px 12px; text-align: left;
+    border-bottom: 1px solid var(--border-color);
+  }
+  th { color: var(--amber-400); background: var(--navy-600); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.03em; }
+  td { color: var(--text-secondary); }
+  tr:hover td { background: var(--navy-700); }
+  .callout {
+    border-radius: 8px; padding: 14px 16px; margin: 16px 0;
+    display: flex; gap: 12px; align-items: flex-start; font-size: 0.93rem;
+  }
+  .callout .icon { font-size: 1.2rem; flex-shrink: 0; }
+  .callout-cost { background: rgba(245,166,35,0.1); border: 1px solid rgba(245,166,35,0.35); }
+  .callout-cost strong { color: var(--amber-400); }
+  .callout-security { background: rgba(239,95,95,0.1); border: 1px solid rgba(239,95,95,0.35); }
+  .callout-security strong { color: var(--red-500); }
+  .callout-tip { background: rgba(62,207,142,0.1); border: 1px solid rgba(62,207,142,0.35); }
+  .callout-tip strong { color: var(--green-500); }
+  .code-block {
+    position: relative;
+    background: #0d1120;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin: 14px 0;
+    overflow: hidden;
+  }
+  .code-block .code-label {
+    background: var(--navy-600); padding: 6px 14px; font-size: 11px;
+    color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .copy-btn {
+    background: var(--navy-500); border: 1px solid var(--border-color);
+    color: var(--text-secondary); padding: 3px 10px; border-radius: 5px;
+    font-size: 11px; cursor: pointer; transition: all 0.2s;
+  }
+  .copy-btn:hover { background: var(--amber-500); color: var(--navy-900); }
+  .copy-btn.copied { background: var(--green-500); color: var(--navy-900); }
+  pre {
+    padding: 14px 16px; overflow-x: auto; font-size: 0.85rem;
+    color: #b8e6c9; font-family: "SF Mono", Consolas, Monaco, monospace;
+    line-height: 1.5;
+  }
+  .pre-comment { color: var(--text-muted); }
+  .lab-step {
+    border-left: 2px solid var(--navy-500);
+    padding-left: 18px; margin: 16px 0 16px 8px; position: relative;
+  }
+  .lab-step::before {
+    content: attr(data-step);
+    position: absolute; left: -13px; top: -2px;
+    width: 24px; height: 24px; border-radius: 50%;
+    background: var(--amber-500); color: var(--navy-900);
+    font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .diagram-box {
+    background: var(--navy-700); border: 1px solid var(--border-color);
+    border-radius: 10px; padding: 20px; margin: 16px 0;
+    font-family: "SF Mono", Consolas, monospace; font-size: 0.82rem;
+    overflow-x: auto; white-space: pre; color: var(--text-secondary);
+  }
+  .diagram-box .hl { color: var(--amber-400); font-weight: 600; }
+  .diagram-box .hl2 { color: var(--blue-500); font-weight: 600; }
+  .diagram-box .hl3 { color: var(--green-500); font-weight: 600; }
+  .quiz-q {
+    background: var(--navy-700); border: 1px solid var(--border-color);
+    border-radius: 10px; padding: 18px; margin-bottom: 16px;
+  }
+  .quiz-q p.question { color: var(--text-primary); font-weight: 600; margin-bottom: 12px; }
+  .quiz-opt {
+    display: block; width: 100%; text-align: left;
+    background: var(--navy-600); border: 1px solid var(--border-color);
+    color: var(--text-secondary); padding: 10px 14px; border-radius: 8px;
+    margin-bottom: 8px; cursor: pointer; font-size: 0.92rem; transition: all 0.2s;
+  }
+  .quiz-opt:hover { border-color: var(--amber-500); }
+  .quiz-opt.correct { background: rgba(62,207,142,0.15); border-color: var(--green-500); color: var(--green-500); }
+  .quiz-opt.wrong { background: rgba(239,95,95,0.15); border-color: var(--red-500); color: var(--red-500); }
+  .quiz-explain {
+    display: none; margin-top: 10px; padding: 12px; border-radius: 8px;
+    background: var(--navy-600); font-size: 0.88rem; color: var(--text-secondary);
+  }
+  .quiz-explain.show { display: block; }
+  .quiz-score {
+    text-align: center; font-size: 1.1rem; color: var(--amber-400);
+    padding: 16px; font-weight: 600;
+  }
+  .footer-note {
+    text-align: center; color: var(--text-muted); font-size: 0.85rem; margin-top: 40px;
+  }
+  ul, ol { margin-left: 20px; margin-bottom: 12px; color: var(--text-secondary); }
+  li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<div class="progress-wrap">
+  <div class="progress-bar-outer"><div class="progress-bar-inner" id="progressBar"></div></div>
+  <div class="progress-label">
+    <span>Tiến độ học tập</span>
+    <span id="progressText">0/0 mục đã hoàn thành</span>
+  </div>
+</div>
+
+<div class="container">
+
+<header class="hero">
+  <h1>🌐 AWS VPC — Khái niệm cốt lõi</h1>
+  <p>Từ cơ bản đến nâng cao: xây dựng nền tảng networking cho mọi kiến trúc AWS</p>
+  <div class="badge-row">
+    <span class="badge">📍 Region: ap-southeast-1</span>
+    <span class="badge">🎯 SAA-C03 / SysOps</span>
+    <span class="badge">⏱️ ~90 phút</span>
+  </div>
+</header>
+
+<!-- SECTION 1: VPC & CIDR -->
+<section class="card" id="s1">
+  <div class="card-header" onclick="toggleCard('s1')">
+    <h2>1️⃣ VPC & CIDR Block — Nền móng của mạng riêng</h2>
+    <span class="chevron">▼</span>
+  </div>
+  <div class="card-body">
+    <p><strong>VPC (Virtual Private Cloud)</strong> là một mạng riêng ảo, cô lập về mặt logic trong AWS, nơi bạn kiểm soát hoàn toàn dải IP, subnet, route table và cấu hình gateway.</p>
+
+    <div class="analogy">
+      <span class="tag">🏢 VÍ VON</span><br>
+      VPC giống như bạn thuê nguyên một <strong>khu đất</strong> để xây khu công nghiệp. Bạn tự quyết định chia lô đất (subnet), xây đường nội bộ (route table), đặt cổng ra vào (Internet Gateway), và ai được ra vào (Security Group). AWS chỉ cho bạn thuê đất — còn quy hoạch là việc của bạn.
+    </div>
+
+    <h3>CIDR Block là gì?</h3>
+    <p><strong>CIDR (Classless Inter-Domain Routing)</strong> định nghĩa dải địa chỉ IP mà VPC sở hữu, viết dưới dạng <code>x.x.x.x/n</code>. Số <code>/n</code> càng nhỏ, dải IP càng lớn.</p>
+
+    <table>
+      <tr><th>CIDR</th><th>Số IP</th><th>Dùng cho</th></tr>
+      <tr><td>/16</td><td>65,536 IP</td><td>VPC lớn, nhiều subnet (khuyến nghị)</td></tr>
+      <tr><td>/24</td><td>256 IP</td><td>Subnet phổ biến</td></tr>
+      <tr><td>/28</td><td>16 IP</td><td>Subnet rất nhỏ (VD: NAT, endpoint riêng)</td></tr>
+    </table>
+
+    <div class="callout callout-cost">
+      <span class="icon">⚠️</span>
+      <div><strong>Lưu ý quan trọng:</strong> Mỗi subnet, AWS luôn giữ lại <strong>5 địa chỉ IP</strong> không dùng được (network address, VPC router, DNS, future use, broadcast address). Một subnet /24 có 256 IP nhưng chỉ dùng được 251.</div>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="icon">💡</span>
+      <div><strong>Best practice:</strong> Chọn CIDR VPC đủ rộng ngay từ đầu (VD: <code>10.0.0.0/16</code>) và tránh trùng với CIDR on-premise nếu sau này cần VPN/Direct Connect — trùng CIDR sẽ gây xung đột routing.</div>
+    </div>
+
+    <div class="check-item"><input type="checkbox" data-id="c1-1"><label>Tôi hiểu CIDR block quyết định dải IP của VPC</label></div>
+    <div class="check-item"><input type="checkbox" data-id="c1-2"><label>Tôi hiểu vì sao mỗi subnet mất 5 IP dự trữ</label></div>
+  </div>
+</section>
+
+<!-- SECTION 2: Subnet -->
+<section class="card" id="s2">
+  <div class="card-header" onclick="toggleCard('s2')">
+    <h2>2️⃣ Subnet — Public vs Private</h2>
+    <span class="chevron">▼</span>
+  </div>
+  <div class="card-body">
+    <p>Subnet là một phân vùng IP trong VPC, luôn nằm gọn trong <strong>một Availability Zone (AZ)</strong> duy nhất. Một VPC thường có nhiều subnet trải trên nhiều AZ để đạt tính sẵn sàng cao.</p>
+
+    <div class="analogy">
+      <span class="tag">🏭 VÍ VON</span><br>
+      Nếu VPC là khu đất, thì <strong>subnet là từng khu nhà xưởng</strong> được xây trên đó — mỗi khu nằm cố định trong một khu vực địa lý (AZ) và có cổng ra riêng.
+    </div>
+
+    <h3>Điều gì quyết định Public hay Private?</h3>
+    <p>Không có thuộc tính "public/private" gắn cứng vào subnet. Nó <strong>hoàn toàn do route table quyết định</strong>:</p>
+    <ul>
+      <li><strong>Public subnet</strong>: route table có route trỏ <code>0.0.0.0/0 → Internet Gateway (IGW)</code></li>
+      <li><strong>Private subnet</strong>: route table không có route thẳng ra IGW (có thể qua NAT Gateway để ra internet một chiều)</li>
+    </ul>
+
+    <div class="diagram-box">┌─────────────────────────── VPC (10.0.0.0/16) ───────────────────────────┐
+│                                                                          │
+│   ┌──────────── AZ-a ────────────┐    ┌──────────── AZ-b ────────────┐  │
+│   │  <span class="hl">Public Subnet</span>  10.0.1.0/24  │    │  <span class="hl">Public Subnet</span>  10.0.2.0/24  │  │
+│   │  (route → IGW)                │    │  (route → IGW)                │  │
+│   │  [ ALB / Bastion / NAT GW ]   │    │  [ ALB / Bastion ]            │  │
+│   └───────────────────────────────┘    └───────────────────────────────┘  │
+│                                                                          │
+│   ┌──────────── AZ-a ────────────┐    ┌──────────── AZ-b ────────────┐  │
+│   │  <span class="hl2">Private Subnet</span> 10.0.11.0/24 │    │  <span class="hl2">Private Subnet</span> 10.0.12.0/24 │  │
+│   │  (route → NAT GW)             │    │  (route → NAT GW)             │  │
+│   │  [ EC2 App / ECS Tasks ]      │    │  [ EC2 App / ECS Tasks ]      │  │
+│   └───────────────────────────────┘    └───────────────────────────────┘  │
+│                                                                          │
+│   ┌──────────── AZ-a ────────────┐    ┌──────────── AZ-b ────────────┐  │
+│   │  <span class="hl3">DB Subnet</span> 10.0.21.0/24     │    │  <span class="hl3">DB Subnet</span> 10.0.22.0/24     │  │
+│   │  (no route out)               │    │  (no route out)               │  │
+│   │  [ RDS Multi-AZ ]             │    │  [ RDS Multi-AZ standby ]     │  │
+│   └───────────────────────────────┘    └───────────────────────────────┘  │
+└──────────────────────────────────────────────────────────────────────────┘</div>
+
+    <div class="callout callout-tip">
+      <span class="icon">💡</span>
+      <div><strong>Design pattern chuẩn 3 lớp:</strong> Public subnet (load balancer) → Private subnet (app server/ECS) → DB subnet (RDS, không có route ra ngoài). Đây chính là pattern bạn đã áp dụng ở lab RDS Multi-AZ.</div>
+    </div>
+
+    <div class="check-item"><input type="checkbox" data-id="c2-1"><label>Tôi hiểu subnet luôn thuộc 1 AZ duy nhất</label></div>
+    <div class="check-item"><input type="checkbox" data-id="c2-2"><label>Tôi hiểu public/private là do route table, không phải thuộc tính cố định</label></div>
+    <div class="check-item"><input type="checkbox" data-id="c2-3"><label>Tôi hiểu design pattern 3 lớp (public/private/DB)</label></div>
+  </div>
+</section>
+
+<!-- SECTION 3: IGW & NAT -->
+<section class="card" id="s3">
+  <div class="card-header" onclick="toggleCard('s3')">
+    <h2>3️⃣ Internet Gateway & NAT Gateway</h2>
+    <span class="chevron">▼</span>
+  </div>
+  <div class="card-body">
+    <h3>Internet Gateway (IGW)</h3>
+    <p>Là cửa ngõ <strong>2 chiều</strong> cho phép resource trong public subnet giao tiếp trực tiếp với internet. Mỗi VPC chỉ gắn được <strong>1 IGW</strong>, và IGW không có giới hạn băng thông hay tính phí theo giờ.</p>
+
+    <h3>NAT Gateway</h3>
+    <p>Cho phép resource trong <strong>private subnet</strong> chủ động ra internet (VD: tải update, gọi API bên ngoài) nhưng internet <strong>không thể chủ động kết nối vào</strong> — đây là kết nối <strong>1 chiều</strong>.</p>
+
+    <table>
+      <tr><th>Tiêu chí</th><th>NAT Gateway</th><th>NAT Instance</th></tr>
+      <tr><td>Quản lý</td><td>AWS managed, tự động HA trong AZ</td><td>Tự quản lý (EC2)</td></tr>
+      <tr><td>Băng thông</td><td>Đến 100 Gbps, tự scale</td><td>Giới hạn theo instance type</td></tr>
+      <tr><td>Chi phí</td><td>Theo giờ + theo GB xử lý</td><td>Chi phí EC2 instance</td></tr>
+      <tr><td>Security Group</td><td>Không áp dụng được</td><td>Có thể áp dụng SG</td></tr>
+      <tr><td>Khuyến nghị</td><td>✅ Production</td><td>Chỉ dùng khi cần custom/tiết kiệm</td></tr>
+    </table>
+
+    <div class="callout callout-cost">
+      <span class="icon">💰</span>
+      <div><strong>Chi phí ẩn:</strong> NAT Gateway tính phí theo <strong>giờ chạy</strong> (~0.045 USD/h ở nhiều region) <strong>cộng thêm phí theo mỗi GB dữ liệu</strong> đi qua. Với hệ thống nhiều AZ, mỗi AZ nên có 1 NAT Gateway riêng để tránh single point of failure — nhưng điều này nhân chi phí lên tương ứng.</div>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="icon">💡</span>
+      <div><strong>Tiết kiệm chi phí:</strong> Nếu chỉ cần private subnet gọi tới S3/DynamoDB, dùng <strong>VPC Gateway Endpoint</strong> (miễn phí) thay vì NAT Gateway để giảm chi phí data transfer đáng kể.</div>
+    </div>
+
+    <div class="check-item"><input type="checkbox" data-id="c3-1"><label>Tôi hiểu IGW là 2 chiều, NAT là 1 chiều</label></div>
+    <div class="check-item"><input type="checkbox" data-id="c3-2"><label>Tôi hiểu NAT Gateway tính phí theo giờ + GB</label></div>
+  </div>
+</section>
+
+<!-- SECTION 4: Route Table -->
+<section class="card" id="s4">
+  <div class="card-header" onclick="toggleCard('s4')">
+    <h2>4️⃣ Route Table — "Bộ não" định tuyến</h2>
+    <span class="chevron">▼</span>
+  </div>
+  <div class="card-body">
+    <p>Route Table chứa các quy tắc (route) xác định traffic từ subnet sẽ đi đâu. Mỗi subnet phải gắn với đúng <strong>1 route table</strong> (nếu không gắn tường minh, nó dùng <strong>Main Route Table</strong> mặc định của VPC).</p>
+
+    <div class="code-block">
+      <div class="code-label">Ví dụ Route Table của Public Subnet <button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre>Destination         Target
+10.0.0.0/16         local            <span class="pre-comment"># traffic nội bộ VPC</span>
+0.0.0.0/0           igw-0abc1234     <span class="pre-comment"># mọi traffic khác ra Internet Gateway</span></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-label">Ví dụ Route Table của Private Subnet <button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+      <pre>Destination         Target
+10.0.0.0/16         local            <span class="pre-comment"># traffic nội bộ VPC</span>
+0.0.0.0/0           nat-0def5678     <span class="pre-comment"># ra ngoài qua NAT Gateway</span></pre>
+    </div>
+
+    <div class="callout callout-security">
+      <span class="icon">🔒</span>
+      <div><strong>Bẫy thường gặp:</strong> Quên gắn route table đúng cho subnet khiến nó rơi về Main Route Table mặc định — dẫn đến subnet "public" theo thiết kế nhưng thực chất không có đường ra IGW (hoặc ngược lại, private subnet vô tình có đường ra ngoài).</div>
+    </div>
+
+    <div class="check-item"><input type="checkbox" data-id="c4-1"><label>Tôi hiểu mỗi subnet gắn với đúng 1 route table</label></div>
+    <div class="check-item"><input type="checkbox" data-id="c4-2"><label>Tôi hiểu route <code>local</code> luôn tồn tại mặc định</label></div>
+  </div>
+</section>
+
+<!-- SECTION 5: SG vs NACL -->
+<section class="card" id="s5">
+  <div class="card-header" onclick="toggleCard('s5')">
+    <h2>5️⃣ Security Group vs Network ACL</h2>
+    <span class="chevron">▼</span>
+  </div>
+  <div class="card-body">
+    <p>Đây là 2 lớp firewall trong VPC, hoạt động ở tầng khác nhau và có bản chất khác nhau hoàn toàn.</p>
+
+    <table>
+      <tr><th>Tiêu chí</th><th>Security Group</th><th>Network ACL</th></tr>
+      <tr><td>Áp dụng cho</td><td>ENI / Instance</td><td>Subnet (toàn bộ)</td></tr>
+      <tr><td>Trạng thái</td><td><strong>Stateful</strong> — traffic trả về tự động cho phép</td><td><strong>Stateless</strong> — phải khai báo rule cho cả 2 chiều</td></tr>
+      <tr><td>Rule</td><td>Chỉ có <strong>Allow</strong></td><td>Có cả <strong>Allow và Deny</strong></td></tr>
+      <tr><td>Thứ tự xử lý</td><td>Đánh giá toàn bộ rule</td><td>Xử lý theo <strong>số thứ tự rule</strong> tăng dần, dừng ở rule khớp đầu tiên</td></tr>
+      <tr><td>Số lượng/resource</td><td>Nhiều SG gắn cho 1 ENI</td><td>1 NACL cho 1 subnet</td></tr>
+    </table>
+
+    <div class="analogy">
+      <span class="tag">🚪 VÍ VON</span><br>
+      <strong>Security Group</strong> giống bảo vệ đứng trước cửa từng căn phòng (instance) — nhớ mặt ai đã vào thì tự động cho ra mà không cần hỏi lại (stateful). <strong>NACL</strong> giống trạm kiểm soát ở cổng khu công nghiệp (subnet) — kiểm tra từng xe ra vào độc lập, xe vào rồi muốn ra vẫn phải qua kiểm tra riêng (stateless).
+    </div>
+
+    <div class="callout callout-security">
+      <span class="icon">🔒</span>
+      <div><strong>Best practice bảo mật:</strong> Dùng Security Group làm lớp chính (least privilege, chỉ allow cần thiết). NACL nên dùng cho các rule <strong>deny tường minh</strong> ở cấp subnet — VD: block hẳn 1 dải IP độc hại mà không cần touch từng SG.</div>
+    </div>
+
+    <div class="check-item"><input type="checkbox" data-id="c5-1"><label>Tôi hiểu SG stateful, NACL stateless</label></div>
+    <div class="check-item"><input type="checkbox" data-id="c5-2"><label>Tôi hiểu NACL xử lý theo thứ tự rule number</label></div>
+  </div>
+</section>
+
+<!-- SECTION 6: Peering & Endpoints -->
+<section class="card" id="s6">
+  <div class="card-header" onclick="toggleCard('s6')">
+    <h2>6️⃣ VPC Peering & VPC Endpoints</h2>
+    <span class="chevron">▼</span>
+  </div>
+  <div class="card-body">
+    <h3>VPC Peering</h3>
+    <p>Kết nối trực tiếp <strong>1-1</strong> giữa 2 VPC (cùng hoặc khác account/region), traffic đi qua mạng riêng của AWS, không qua internet.</p>
+    <div class="callout callout-security">
+      <span class="icon">⚠️</span>
+      <div><strong>Giới hạn quan trọng:</strong> Peering <strong>không bắc cầu (non-transitive)</strong> — nếu VPC-A peer với VPC-B, và VPC-B peer với VPC-C, thì A <strong>không</strong> tự động thấy C. Với nhiều VPC cần giao tiếp, nên cân nhắc <strong>Transit Gateway</strong> thay vì peering hình sao/mesh phức tạp.</div>
+    </div>
+
+    <h3>VPC Endpoints</h3>
+    <p>Cho phép traffic từ VPC tới AWS service <strong>không cần đi qua internet/NAT Gateway</strong>.</p>
+    <table>
+      <tr><th>Loại</th><th>Dùng cho</th><th>Chi phí</th></tr>
+      <tr><td><strong>Gateway Endpoint</strong></td><td>Chỉ S3 và DynamoDB</td><td>Miễn phí</td></tr>
+      <tr><td><strong>Interface Endpoint</strong> (PrivateLink)</td><td>Hầu hết service khác (EC2, SSM, ECR, Secrets Manager...)</td><td>Tính phí theo giờ + GB</td></tr>
+    </table>
+
+    <div class="callout callout-tip">
+      <span class="icon">💡</span>
+      <div><strong>Kết nối với lab ECS/ECR của bạn:</strong> Nếu ECS Fargate task trong private subnet cần pull image từ ECR mà không muốn tốn NAT Gateway, có thể dùng Interface Endpoint cho <code>ecr.api</code>, <code>ecr.dkr</code> và Gateway Endpoint cho S3 (vì image layer lưu ở S3).</div>
+    </div>
+
+    <div class="check-item"><input type="checkbox" data-id="c6-1"><label>Tôi hiểu VPC Peering không bắc cầu</label></div>
+    <div class="check-item"><input type="checkbox" data-id="c6-2"><label>Tôi hiểu khác biệt Gateway Endpoint vs Interface Endpoint</label></div>
+  </div>
+</section>
+
+<!-- SECTION 7: Hands-on Lab -->
+<section class="card" id="s7">
+  <div class="card-header" onclick="toggleCard('s7')">
+    <h2>7️⃣ Lab thực hành: Dựng VPC 2-tier bằng CLI</h2>
+    <span class="chevron">▼</span>
+  </div>
+  <div class="card-body">
+    <p>Thực hành tạo 1 VPC với public + private subnet, IGW, NAT Gateway và route table hoàn chỉnh.</p>
+
+    <div class="lab-step" data-step="1">
+      <h3>Tạo VPC</h3>
+      <div class="code-block">
+        <div class="code-label">bash <button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>aws ec2 create-vpc \
+  --cidr-block 10.0.0.0/16 \
+  --region ap-southeast-1 \
+  --tag-specifications 'ResourceType=vpc,Tags=[{Key=Name,Value=lab-vpc}]'</pre>
+      </div>
+    </div>
+
+    <div class="lab-step" data-step="2">
+      <h3>Tạo Public & Private Subnet</h3>
+      <div class="code-block">
+        <div class="code-label">bash <button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>aws ec2 create-subnet --vpc-id vpc-xxxx \
+  --cidr-block 10.0.1.0/24 \
+  --availability-zone ap-southeast-1a \
+  --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=public-1a}]'
+
+aws ec2 create-subnet --vpc-id vpc-xxxx \
+  --cidr-block 10.0.11.0/24 \
+  --availability-zone ap-southeast-1a \
+  --tag-specifications 'ResourceType=subnet,Tags=[{Key=Name,Value=private-1a}]'</pre>
+      </div>
+    </div>
+
+    <div class="lab-step" data-step="3">
+      <h3>Tạo & gắn Internet Gateway</h3>
+      <div class="code-block">
+        <div class="code-label">bash <button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>aws ec2 create-internet-gateway \
+  --tag-specifications 'ResourceType=internet-gateway,Tags=[{Key=Name,Value=lab-igw}]'
+
+aws ec2 attach-internet-gateway \
+  --internet-gateway-id igw-xxxx \
+  --vpc-id vpc-xxxx</pre>
+      </div>
+    </div>
+
+    <div class="lab-step" data-step="4">
+      <h3>Tạo Route Table cho Public Subnet</h3>
+      <div class="code-block">
+        <div class="code-label">bash <button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre>aws ec2 create-route-table --vpc-id vpc-xxxx \
+  --tag-specifications 'ResourceType=route-table,Tags=[{Key=Name,Value=public-rt}]'
+
+aws ec2 create-route --route-table-id rtb-xxxx \
+  --destination-cidr-block 0.0.0.0/0 \
+  --gateway-id igw-xxxx
+
+aws ec2 associate-route-table --route-table-id rtb-xxxx \
+  --subnet-id subnet-public-xxxx</pre>
+      </div>
+    </div>
+
+    <div class="lab-step" data-step="5">
+      <h3>Tạo NAT Gateway cho Private Subnet</h3>
+      <div class="code-block">
+        <div class="code-label">bash <button class="copy-btn" onclick="copyCode(this)">Copy</button></div>
+        <pre># Cần Elastic IP trước
+aws ec2 allocate-address --domain vpc
+
+aws ec2 create-nat-gateway \
+  --subnet-id subnet-public-xxxx \
+  --allocation-id eipalloc-xxxx \
+  --tag-specifications 'ResourceType=natgateway,Tags=[{Key=Name,Value=lab-nat}]'
+
+# Route cho private subnet trỏ qua NAT
+aws ec2 create-route --route-table-id rtb-private-xxxx \
+  --destination-cidr-block 0.0.0.0/0 \
+  --nat-gateway-id nat-xxxx</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-cost">
+      <span class="icon">💰</span>
+      <div><strong>Nhớ dọn dẹp sau lab:</strong> NAT Gateway và Elastic IP (khi chưa gắn) đều tính phí theo giờ. Xóa NAT Gateway trước, đợi vài phút rồi release Elastic IP để tránh phí phát sinh ngoài ý muốn.</div>
+    </div>
+
+    <div class="check-item"><input type="checkbox" data-id="c7-1"><label>Tôi đã thực hành tạo VPC + subnet qua CLI</label></div>
+    <div class="check-item"><input type="checkbox" data-id="c7-2"><label>Tôi đã thực hành gắn IGW và tạo route table</label></div>
+    <div class="check-item"><input type="checkbox" data-id="c7-3"><label>Tôi đã thực hành tạo NAT Gateway</label></div>
+  </div>
+</section>
+
+<!-- SECTION 8: Quiz -->
+<section class="card" id="s8">
+  <div class="card-header" onclick="toggleCard('s8')">
+    <h2>8️⃣ Kiểm tra kiến thức</h2>
+    <span class="chevron">▼</span>
+  </div>
+  <div class="card-body">
+    <div class="quiz-q" data-qid="q1">
+      <p class="question">1. Một subnet có thể trải trên nhiều Availability Zone không?</p>
+      <button class="quiz-opt" data-correct="false">Có, để tăng tính sẵn sàng</button>
+      <button class="quiz-opt" data-correct="true">Không, mỗi subnet luôn thuộc đúng 1 AZ</button>
+      <button class="quiz-opt" data-correct="false">Chỉ đúng với subnet /16</button>
+      <div class="quiz-explain">✅ Đúng: Subnet bị ràng buộc vào 1 AZ ngay khi tạo. Muốn HA đa AZ, bạn phải tạo nhiều subnet, mỗi cái ở 1 AZ khác nhau.</div>
+    </div>
+
+    <div class="quiz-q" data-qid="q2">
+      <p class="question">2. Điều gì quyết định một subnet là "public"?</p>
+      <button class="quiz-opt" data-correct="false">Thuộc tính public được đặt lúc tạo subnet</button>
+      <button class="quiz-opt" data-correct="true">Route table của subnet có route 0.0.0.0/0 trỏ tới IGW</button>
+      <button class="quiz-opt" data-correct="false">Subnet đó nằm ở AZ đầu tiên</button>
+      <div class="quiz-explain">✅ Đúng: Không có cờ "public/private" trong AWS — hoàn toàn do route table quyết định.</div>
+    </div>
+
+    <div class="quiz-q" data-qid="q3">
+      <p class="question">3. Khác biệt cốt lõi giữa Security Group và NACL là gì?</p>
+      <button class="quiz-opt" data-correct="false">SG áp dụng cho subnet, NACL áp dụng cho instance</button>
+      <button class="quiz-opt" data-correct="true">SG là stateful, NACL là stateless</button>
+      <button class="quiz-opt" data-correct="false">NACL chỉ có rule Allow, SG có cả Allow/Deny</button>
+      <div class="quiz-explain">✅ Đúng: SG tự động cho phép traffic trả về (stateful). NACL phải khai báo rule riêng cho inbound và outbound (stateless), và là loại duy nhất hỗ trợ rule Deny.</div>
+    </div>
+
+    <div class="quiz-q" data-qid="q4">
+      <p class="question">4. VPC Peering giữa A-B và B-C có cho phép A giao tiếp trực tiếp với C không?</p>
+      <button class="quiz-opt" data-correct="false">Có, traffic tự động bắc cầu qua B</button>
+      <button class="quiz-opt" data-correct="true">Không, peering không bắc cầu (non-transitive)</button>
+      <button class="quiz-opt" data-correct="false">Chỉ có nếu 3 VPC cùng region</button>
+      <div class="quiz-explain">✅ Đúng: Phải tạo thêm peering A-C trực tiếp, hoặc dùng Transit Gateway nếu số lượng VPC nhiều.</div>
+    </div>
+
+    <div class="quiz-q" data-qid="q5">
+      <p class="question">5. Muốn private subnet gọi tới S3 mà không tốn phí NAT Gateway, nên dùng gì?</p>
+      <button class="quiz-opt" data-correct="false">Interface Endpoint</button>
+      <button class="quiz-opt" data-correct="true">Gateway Endpoint</button>
+      <button class="quiz-opt" data-correct="false">VPC Peering với S3</button>
+      <div class="quiz-explain">✅ Đúng: Gateway Endpoint hỗ trợ S3 và DynamoDB, hoàn toàn miễn phí và không cần NAT Gateway.</div>
+    </div>
+
+    <div class="quiz-score" id="quizScore"></div>
+  </div>
+</section>
+
+</div>
+
+<p class="footer-note">Lab được thiết kế cho lộ trình SAA-C03 → SysOps → DevOps Engineer Pro · Region ap-southeast-1</p>
+
+<script>
+function toggleCard(id) {
+  document.getElementById(id).classList.toggle('collapsed');
+}
+
+function copyCode(btn) {
+  const pre = btn.closest('.code-block').querySelector('pre');
+  const text = pre.innerText;
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = 'Đã copy!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+// Progress tracking with localStorage
+const STORAGE_KEY = 'vpc-lab-progress';
+function loadProgress() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+  } catch(e) { return {}; }
+}
+function saveProgress(data) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+function updateProgressBar() {
+  const checks = document.querySelectorAll('.check-item input[type="checkbox"]');
+  const total = checks.length;
+  const checked = document.querySelectorAll('.check-item input[type="checkbox"]:checked').length;
+  const pct = total ? Math.round((checked/total)*100) : 0;
+  document.getElementById('progressBar').style.width = pct + '%';
+  document.getElementById('progressText').textContent = checked + '/' + total + ' mục đã hoàn thành';
+}
+function initChecklist() {
+  const progress = loadProgress();
+  document.querySelectorAll('.check-item input[type="checkbox"]').forEach(cb => {
+    const id = cb.dataset.id;
+    if (progress[id]) cb.checked = true;
+    cb.addEventListener('change', () => {
+      const p = loadProgress();
+      p[id] = cb.checked;
+      saveProgress(p);
+      updateProgressBar();
+    });
+  });
+  updateProgressBar();
+}
+
+// Quiz logic
+let quizAnswered = {};
+function initQuiz() {
+  document.querySelectorAll('.quiz-q').forEach(q => {
+    const opts = q.querySelectorAll('.quiz-opt');
+    opts.forEach(opt => {
+      opt.addEventListener('click', () => {
+        if (quizAnswered[q.dataset.qid]) return;
+        quizAnswered[q.dataset.qid] = true;
+        const isCorrect = opt.dataset.correct === 'true';
+        opts.forEach(o => {
+          o.disabled = true;
+          if (o.dataset.correct === 'true') o.classList.add('correct');
+          else if (o === opt) o.classList.add('wrong');
+        });
+        q.querySelector('.quiz-explain').classList.add('show');
+        checkQuizComplete();
+      });
+    });
+  });
+}
+function checkQuizComplete() {
+  const totalQ = document.querySelectorAll('.quiz-q').length;
+  const answered = Object.keys(quizAnswered).length;
+  if (answered === totalQ) {
+    let correct = 0;
+    document.querySelectorAll('.quiz-q').forEach(q => {
+      const correctOpt = q.querySelector('.quiz-opt.correct');
+      const wrongClicked = q.querySelector('.quiz-opt.wrong');
+      if (!wrongClicked) correct++;
+    });
+    document.getElementById('quizScore').textContent = `🎉 Kết quả: ${correct}/${totalQ} câu đúng`;
+  }
+}
+
+initChecklist();
+initQuiz();
+</script>
+
+</body>
+</html>
