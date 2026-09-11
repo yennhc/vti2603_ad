@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAB: Làm Quen Với AWS Lambda</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --bg-panel: #101a2e;
+    --bg-panel-2: #0e1729;
+    --border: #1f2d4a;
+    --amber: #f0a832;
+    --amber-dim: #b9822a;
+    --text: #dbe4f3;
+    --text-dim: #8ea0c2;
+    --green: #4caf7d;
+    --red: #e0654f;
+    --blue: #5c9cd6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    line-height: 1.6;
+  }
+  .progress-wrap {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+  }
+  .progress-inner {
+    max-width: 900px; margin: 0 auto;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .progress-bar-bg {
+    flex: 1; height: 8px; background: #182338; border-radius: 4px; overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+    width: 0%; transition: width .4s ease;
+  }
+  .progress-label { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  header.hero {
+    padding: 28px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--amber); font-size: 13px; letter-spacing: 0.3px; margin-bottom: 8px; }
+  h1 { font-size: 30px; margin: 0 0 10px; color: #fff; }
+  .subtitle { color: var(--text-dim); font-size: 15px; max-width: 620px; }
+
+  section.block {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 18px;
+    overflow: hidden;
+  }
+  .block-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .block-header:hover { background: rgba(240,168,50,0.04); }
+  .block-title { display: flex; align-items: center; gap: 10px; }
+  .block-title .icon-box {
+    width: 30px; height: 30px; border-radius: 7px;
+    background: rgba(240,168,50,0.12);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--amber); font-size: 15px; flex-shrink: 0;
+  }
+  .block-title h2 { font-size: 17px; margin: 0; color: #fff; }
+  .chevron { color: var(--text-dim); transition: transform .25s ease; font-size: 13px; }
+  .block.collapsed .chevron { transform: rotate(-90deg); }
+  .block-body {
+    padding: 0 20px 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+  }
+  .block.collapsed .block-body { display: none; }
+
+  p { color: var(--text); font-size: 15px; }
+  .dim { color: var(--text-dim); }
+
+  .analogy {
+    background: var(--bg-panel-2);
+    border-left: 3px solid var(--blue);
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    margin: 14px 0;
+  }
+  .analogy b { color: var(--blue); }
+
+  table {
+    width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 14px 0;
+  }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--amber); font-weight: 600; background: rgba(240,168,50,0.06); }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .callout {
+    border-radius: 8px; padding: 12px 16px; margin: 14px 0; font-size: 14px;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .callout .cicon { flex-shrink: 0; font-size: 16px; margin-top: 1px; }
+  .callout.cost { background: rgba(224,101,79,0.08); border: 1px solid rgba(224,101,79,0.3); }
+  .callout.cost .cicon { color: var(--red); }
+  .callout.tip { background: rgba(76,175,125,0.08); border: 1px solid rgba(76,175,125,0.3); }
+  .callout.tip .cicon { color: var(--green); }
+  .callout.security { background: rgba(92,156,214,0.08); border: 1px solid rgba(92,156,214,0.3); }
+  .callout.security .cicon { color: var(--blue); }
+
+  .code-block {
+    position: relative;
+    background: #0a1220;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 12px 0;
+  }
+  .code-block pre {
+    margin: 0; padding: 14px 16px; overflow-x: auto;
+    font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+    font-size: 13px; color: #b8e6b8;
+  }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 11px; padding: 5px 10px;
+    border-radius: 6px; cursor: pointer;
+  }
+  .copy-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
+  .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+  .step {
+    display: flex; gap: 14px; margin-bottom: 16px;
+  }
+  .step-num {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(240,168,50,0.15); color: var(--amber);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; margin-top: 2px;
+  }
+  .step-content { flex: 1; }
+  .step-content h4 { margin: 0 0 4px; font-size: 15px; color: #fff; }
+
+  .checklist-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .checklist-item input[type=checkbox] {
+    width: 18px; height: 18px; margin-top: 2px; accent-color: var(--amber); cursor: pointer; flex-shrink: 0;
+  }
+  .checklist-item label { font-size: 14px; cursor: pointer; }
+  .checklist-item.done label { color: var(--text-dim); text-decoration: line-through; }
+
+  .quiz-q {
+    background: var(--bg-panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; margin-bottom: 14px;
+  }
+  .quiz-q p.qtext { font-weight: 600; color: #fff; margin: 0 0 10px; font-size: 14.5px; }
+  .quiz-opt {
+    display: block; width: 100%; text-align: left;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    color: var(--text); padding: 9px 12px; border-radius: 6px;
+    margin-bottom: 6px; cursor: pointer; font-size: 13.5px;
+  }
+  .quiz-opt:hover { border-color: var(--amber-dim); }
+  .quiz-opt.correct { border-color: var(--green); background: rgba(76,175,125,0.1); }
+  .quiz-opt.wrong { border-color: var(--red); background: rgba(224,101,79,0.1); }
+  .quiz-explain {
+    font-size: 13px; color: var(--text-dim); margin-top: 8px; padding-top: 8px;
+    border-top: 1px dashed var(--border); display: none;
+  }
+  .quiz-explain.show { display: block; }
+
+  footer { text-align: center; color: var(--text-dim); font-size: 12px; padding: 20px 0; }
+</style>
+</head>
+<body>
+
+<div class="progress-wrap">
+  <div class="progress-inner">
+    <span class="progress-label" id="progressLabel">0 / 0 hoàn thành</span>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+  </div>
+</div>
+
+<div class="container">
+
+  <header class="hero">
+    <div class="eyebrow">AWS · LAB CƠ BẢN</div>
+    <h1>Làm Quen Với AWS Lambda</h1>
+    <p class="subtitle">Hiểu các khái niệm cốt lõi của serverless computing và tự tay viết, triển khai hàm Lambda đầu tiên — dành cho người mới bắt đầu, không cần kinh nghiệm trước.</p>
+  </header>
+
+  <!-- SECTION 1: LAMBDA LÀ GÌ -->
+  <section class="block" data-block="1">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">1</div>
+        <h2>Lambda là gì?</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+      <p><b>AWS Lambda</b> là dịch vụ <b>serverless compute</b> — bạn chỉ viết code (gọi là <b>function</b>), tải lên AWS, và Lambda tự động chạy code đó khi có sự kiện kích hoạt (trigger). Bạn không cần quản lý máy chủ, không cần cài OS, không cần lo scaling — AWS lo tất cả phần hạ tầng.</p>
+
+      <div class="analogy">
+        <b>Ví dụ dễ hình dung:</b> Nếu EC2 giống như thuê hẳn một căn hộ (phải tự bật/tắt điện, dọn dẹp, bảo trì dù có ở hay không), thì Lambda giống như gọi taxi công nghệ — bạn chỉ trả tiền cho đúng chuyến đi (mỗi lần function chạy), không cần sở hữu xe, không lo bảo dưỡng. Khi không có ai gọi, bạn không trả đồng nào.
+      </div>
+
+      <div class="callout tip">
+        <span class="cicon">✓</span>
+        <div><b>Khác biệt lớn nhất với EC2:</b> Lambda không "chạy liên tục". Nó chỉ "thức dậy" khi có sự kiện gọi đến, xử lý xong rồi "ngủ lại" — mô hình này gọi là <b>event-driven</b>.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: KHÁI NIỆM CỐT LÕI -->
+  <section class="block" data-block="2">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">2</div>
+        <h2>Các khái niệm cốt lõi</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+
+      <table>
+        <tr><th>Khái niệm</th><th>Giải thích</th></tr>
+        <tr><td><b>Function</b></td><td>Đơn vị code bạn viết và triển khai lên Lambda — chứa logic xử lý.</td></tr>
+        <tr><td><b>Handler</b></td><td>Hàm entry-point cụ thể mà Lambda gọi đầu tiên khi function được kích hoạt (vd: <code>index.handler</code>).</td></tr>
+        <tr><td><b>Trigger</b></td><td>Sự kiện kích hoạt function chạy — API Gateway, S3 upload, EventBridge (lịch), SQS, DynamoDB Stream...</td></tr>
+        <tr><td><b>Runtime</b></td><td>Môi trường ngôn ngữ để chạy code (Node.js, Python, Java, Go...).</td></tr>
+        <tr><td><b>Execution Role</b></td><td>IAM Role gán cho function, quyết định function được phép gọi những dịch vụ AWS nào.</td></tr>
+        <tr><td><b>Cold Start</b></td><td>Độ trễ khởi tạo môi trường khi function chạy lần đầu (hoặc sau thời gian dài không dùng).</td></tr>
+        <tr><td><b>Timeout / Memory</b></td><td>Giới hạn thời gian chạy tối đa (tối đa 15 phút) và bộ nhớ cấp phát (128MB–10GB), ảnh hưởng cả hiệu năng lẫn chi phí.</td></tr>
+        <tr><td><b>Layer</b></td><td>Gói thư viện/dependency dùng chung, có thể gắn vào nhiều function khác nhau.</td></tr>
+      </table>
+
+      <p class="dim" style="font-size:13.5px;">Ghi nhớ nhanh: <b>Trigger</b> đánh thức → <b>Handler</b> xử lý → <b>Execution Role</b> quyết định function được làm gì.</p>
+    </div>
+  </section>
+
+  <!-- SECTION 3: TRIGGER PHỔ BIẾN -->
+  <section class="block" data-block="3">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">3</div>
+        <h2>Trigger phổ biến: khi nào Lambda chạy?</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+      <p>Lambda hầu như luôn được gọi bởi một dịch vụ AWS khác, chứ hiếm khi tự chạy độc lập.</p>
+
+      <table>
+        <tr><th>Trigger</th><th>Kích hoạt khi nào</th><th>Ví dụ dùng thực tế</th></tr>
+        <tr><td><b>API Gateway</b></td><td>Có HTTP request gọi đến endpoint</td><td>Xây REST API serverless, backend cho web/app</td></tr>
+        <tr><td><b>S3 Event</b></td><td>File được upload/xóa trong bucket</td><td>Tự động resize ảnh khi upload</td></tr>
+        <tr><td><b>EventBridge (Scheduled)</b></td><td>Theo lịch định kỳ (cron)</td><td>Chạy báo cáo hàng ngày, dọn dẹp dữ liệu cũ</td></tr>
+        <tr><td><b>SQS / SNS</b></td><td>Có message mới trong queue/topic</td><td>Xử lý hàng đợi tác vụ bất đồng bộ</td></tr>
+        <tr><td><b>DynamoDB Streams</b></td><td>Dữ liệu trong bảng thay đổi</td><td>Đồng bộ dữ liệu real-time sang hệ thống khác</td></tr>
+      </table>
+
+      <div class="callout cost">
+        <span class="cicon">⚠</span>
+        <div><b>Lưu ý chi phí:</b> Lambda tính phí theo <b>số lần gọi (invocation)</b> và <b>thời gian thực thi × bộ nhớ cấp phát</b>. Free Tier cho <b>1 triệu request/tháng</b> và <b>400,000 GB-giây compute miễn phí</b> — đủ để thực hành thoải mái.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: HANDS-ON LAB -->
+  <section class="block" data-block="4">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">4</div>
+        <h2>Thực hành: Tạo và test function đầu tiên</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+
+      <p><b>Mục tiêu:</b> Tạo một Lambda function bằng Python, test trực tiếp trên Console, sau đó gắn một API Gateway trigger đơn giản.</p>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Tạo function mới</h4>
+          <p class="dim">Console → Lambda → Create function → "Author from scratch". Đặt tên (vd: <code>lab-hello-function</code>), chọn Runtime <b>Python 3.12</b>, giữ nguyên execution role mặc định (tạo mới với quyền cơ bản).</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Viết code xử lý đơn giản</h4>
+          <p class="dim">Trong tab <b>Code</b>, thay nội dung file <code>lambda_function.py</code>:</p>
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre>import json
+
+def lambda_handler(event, context):
+    name = event.get('queryStringParameters', {}).get('name', 'AWS learner') if event.get('queryStringParameters') else 'AWS learner'
+    return {
+        'statusCode': 200,
+        'body': json.dumps({'message': f'Xin chào, {name}! Function đã chạy thành công.'})
+    }</pre>
+          </div>
+          <p class="dim">Bấm <b>Deploy</b> để lưu thay đổi.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Test function ngay trên Console</h4>
+          <p class="dim">Tab <b>Test</b> → tạo test event mới (dùng template rỗng <code>{}</code>) → bấm <b>Test</b> → xem kết quả trả về và log thực thi bên dưới.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4>Gắn trigger API Gateway</h4>
+          <p class="dim">Tab <b>Configuration</b> → <b>Triggers</b> → Add trigger → chọn <b>API Gateway</b> → "Create a new API", loại <b>HTTP API</b>, security <b>Open</b> (chỉ để test, không dùng cho production).</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <h4>Gọi function qua URL công khai</h4>
+          <p class="dim">Sau khi trigger được tạo, copy API endpoint URL → mở trên trình duyệt hoặc thêm query string <code>?name=Yen</code> để thấy response thay đổi theo tham số.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <h4>Xem log thực thi trên CloudWatch</h4>
+          <p class="dim">Tab <b>Monitor</b> → <b>View CloudWatch logs</b> — mỗi lần function chạy đều tự động ghi log tại đây, hữu ích để debug.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">7</div>
+        <div class="step-content">
+          <h4>Dọn dẹp</h4>
+          <p class="dim">Xóa API Gateway trigger và xóa function sau khi thực hành xong để tránh phát sinh tài nguyên thừa (dù chi phí Lambda ở mức nhỏ này gần như bằng 0).</p>
+        </div>
+      </div>
+
+      <div class="callout security">
+        <span class="cicon">🔒</span>
+        <div><b>Best practice bảo mật:</b> Luôn áp dụng <b>nguyên tắc least privilege</b> cho Execution Role — chỉ cấp đúng quyền function cần dùng (vd: chỉ <code>s3:GetObject</code> nếu chỉ cần đọc, không cấp full <code>s3:*</code>).</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 5: CLI TƯƠNG ĐƯƠNG -->
+  <section class="block" data-block="5">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">5</div>
+        <h2>Thực hiện bằng AWS CLI</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+      <p>Toàn bộ quy trình trên cũng có thể thực hiện bằng CLI (region: <code>ap-southeast-1</code>):</p>
+
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre># Đóng gói code thành file zip
+zip function.zip lambda_function.py
+
+# Tạo function mới (cần execution-role ARN có sẵn)
+aws lambda create-function \
+  --function-name lab-hello-function \
+  --runtime python3.12 \
+  --role arn:aws:iam::&lt;ACCOUNT_ID&gt;:role/lambda-basic-execution \
+  --handler lambda_function.lambda_handler \
+  --zip-file fileb://function.zip \
+  --region ap-southeast-1
+
+# Gọi function trực tiếp để test
+aws lambda invoke \
+  --function-name lab-hello-function \
+  --payload '{"queryStringParameters": {"name": "Yen"}}' \
+  --cli-binary-format raw-in-base64-out \
+  response.json
+cat response.json
+
+# Xem log gần nhất trên CloudWatch
+aws logs tail /aws/lambda/lab-hello-function --follow
+
+# Xóa function khi xong
+aws lambda delete-function --function-name lab-hello-function</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 6: CHECKLIST -->
+  <section class="block" data-block="6">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">✓</div>
+        <h2>Checklist thực hành</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body" id="checklistBody"></div>
+  </section>
+
+  <!-- SECTION 7: QUIZ -->
+  <section class="block" data-block="7">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">?</div>
+        <h2>Kiểm tra kiến thức</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body" id="quizBody"></div>
+  </section>
+
+  <footer>Lab Lambda cơ bản · Tự thực hành trong AWS Free Tier · Region gợi ý: ap-southeast-1</footer>
+</div>
+
+<script>
+const checklistItems = [
+  "Đã tạo Lambda function mới với runtime Python",
+  "Đã viết và deploy code xử lý cơ bản",
+  "Đã test function thành công trên Console",
+  "Đã gắn API Gateway trigger và gọi function qua URL",
+  "Đã xem log thực thi trên CloudWatch",
+  "Đã xóa trigger và function sau khi thực hành xong"
+];
+
+const checklistBody = document.getElementById('checklistBody');
+checklistItems.forEach((text, i) => {
+  const id = 'chk_' + i;
+  const div = document.createElement('div');
+  div.className = 'checklist-item';
+  div.innerHTML = `<input type="checkbox" id="${id}"><label for="${id}">${text}</label>`;
+  checklistBody.appendChild(div);
+});
+
+const quizData = [
+  {
+    q: "Điểm khác biệt cốt lõi giữa Lambda và EC2 là gì?",
+    opts: ["Lambda chỉ chạy trên Windows", "Lambda không cần server chạy liên tục, chỉ thực thi khi có trigger", "Lambda không hỗ trợ Python", "Lambda chỉ dùng được với S3"],
+    correct: 1,
+    explain: "Lambda là serverless — bạn không quản lý hay trả phí cho server chạy liên tục, code chỉ thực thi khi có sự kiện kích hoạt (event-driven)."
+  },
+  {
+    q: "Handler trong Lambda function có vai trò gì?",
+    opts: ["Là tên bucket S3 lưu code", "Là hàm entry-point mà Lambda gọi đầu tiên khi function chạy", "Là loại trigger duy nhất được hỗ trợ", "Là tên gọi khác của Execution Role"],
+    correct: 1,
+    explain: "Handler chỉ định chính xác hàm nào trong code sẽ được Lambda gọi đầu tiên khi function được kích hoạt, ví dụ lambda_function.lambda_handler."
+  },
+  {
+    q: "Lambda tính phí dựa trên yếu tố nào?",
+    opts: ["Số giờ instance chạy liên tục", "Số lần gọi (invocation) và thời gian thực thi × bộ nhớ cấp phát", "Dung lượng ổ đĩa gắn kèm", "Số lượng IAM Role được tạo"],
+    correct: 1,
+    explain: "Lambda tính phí theo số lần invocation cộng với GB-giây (thời gian chạy nhân với bộ nhớ được cấp phát) — không tính phí khi function không chạy."
+  },
+  {
+    q: "Cold start trong Lambda là gì?",
+    opts: ["Lỗi khi function bị xóa nhầm", "Độ trễ khởi tạo môi trường khi function chạy lần đầu hoặc sau thời gian dài không dùng", "Thời gian AWS backup dữ liệu function", "Giới hạn bộ nhớ tối đa của function"],
+    correct: 1,
+    explain: "Cold start là độ trễ phát sinh khi AWS phải khởi tạo môi trường thực thi mới cho function — thường xảy ra ở lần gọi đầu tiên hoặc sau một thời gian function không được gọi."
+  }
+];
+
+const quizBody = document.getElementById('quizBody');
+quizData.forEach((item, qi) => {
+  const div = document.createElement('div');
+  div.className = 'quiz-q';
+  let optsHtml = item.opts.map((opt, oi) =>
+    `<button class="quiz-opt" onclick="answerQuiz(${qi}, ${oi}, this)">${opt}</button>`
+  ).join('');
+  div.innerHTML = `<p class="qtext">Câu ${qi+1}: ${item.q}</p>${optsHtml}<div class="quiz-explain" id="explain_${qi}">${item.explain}</div>`;
+  quizBody.appendChild(div);
+});
+
+function answerQuiz(qi, oi, btn) {
+  const parent = btn.parentElement;
+  const opts = parent.querySelectorAll('.quiz-opt');
+  const correct = quizData[qi].correct;
+  opts.forEach((o, idx) => {
+    o.style.pointerEvents = 'none';
+    if (idx === correct) o.classList.add('correct');
+    else if (idx === oi) o.classList.add('wrong');
+  });
+  document.getElementById('explain_' + qi).classList.add('show');
+}
+
+function toggleBlock(header) {
+  header.parentElement.classList.toggle('collapsed');
+}
+
+function copyCode(btn) {
+  const pre = btn.parentElement.querySelector('pre');
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.textContent = 'Đã copy!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+const STORAGE_KEY = 'lambda_lab_progress_beginner';
+
+function loadProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    document.querySelectorAll('.checklist-item input[type=checkbox]').forEach(cb => {
+      if (saved[cb.id]) {
+        cb.checked = true;
+        cb.parentElement.classList.add('done');
+      }
+    });
+  } catch(e) {}
+  updateProgress();
+}
+
+function saveProgress() {
+  const state = {};
+  document.querySelectorAll('.checklist-item input[type=checkbox]').forEach(cb => {
+    state[cb.id] = cb.checked;
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function updateProgress() {
+  const boxes = document.querySelectorAll('.checklist-item input[type=checkbox]');
+  const total = boxes.length;
+  const done = Array.from(boxes).filter(b => b.checked).length;
+  document.getElementById('progressLabel').textContent = `${done} / ${total} hoàn thành`;
+  document.getElementById('progressFill').style.width = total ? (done/total*100) + '%' : '0%';
+}
+
+document.addEventListener('change', (e) => {
+  if (e.target.matches('.checklist-item input[type=checkbox]')) {
+    e.target.parentElement.classList.toggle('done', e.target.checked);
+    saveProgress();
+    updateProgress();
+  }
+});
+
+loadProgress();
+</script>
+
+</body>
+</html>

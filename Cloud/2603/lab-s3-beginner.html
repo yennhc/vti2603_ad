@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAB: Làm Quen Với Amazon S3</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --bg-panel: #101a2e;
+    --bg-panel-2: #0e1729;
+    --border: #1f2d4a;
+    --amber: #f0a832;
+    --amber-dim: #b9822a;
+    --text: #dbe4f3;
+    --text-dim: #8ea0c2;
+    --green: #4caf7d;
+    --red: #e0654f;
+    --blue: #5c9cd6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    line-height: 1.6;
+  }
+  .progress-wrap {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+  }
+  .progress-inner {
+    max-width: 900px; margin: 0 auto;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .progress-bar-bg {
+    flex: 1; height: 8px; background: #182338; border-radius: 4px; overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+    width: 0%; transition: width .4s ease;
+  }
+  .progress-label { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  header.hero {
+    padding: 28px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--amber); font-size: 13px; letter-spacing: 0.3px; margin-bottom: 8px; }
+  h1 { font-size: 30px; margin: 0 0 10px; color: #fff; }
+  .subtitle { color: var(--text-dim); font-size: 15px; max-width: 620px; }
+
+  section.block {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 18px;
+    overflow: hidden;
+  }
+  .block-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .block-header:hover { background: rgba(240,168,50,0.04); }
+  .block-title { display: flex; align-items: center; gap: 10px; }
+  .block-title .icon-box {
+    width: 30px; height: 30px; border-radius: 7px;
+    background: rgba(240,168,50,0.12);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--amber); font-size: 15px; flex-shrink: 0;
+  }
+  .block-title h2 { font-size: 17px; margin: 0; color: #fff; }
+  .chevron { color: var(--text-dim); transition: transform .25s ease; font-size: 13px; }
+  .block.collapsed .chevron { transform: rotate(-90deg); }
+  .block-body {
+    padding: 0 20px 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+  }
+  .block.collapsed .block-body { display: none; }
+
+  p { color: var(--text); font-size: 15px; }
+  .dim { color: var(--text-dim); }
+
+  .analogy {
+    background: var(--bg-panel-2);
+    border-left: 3px solid var(--blue);
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    margin: 14px 0;
+  }
+  .analogy b { color: var(--blue); }
+
+  table {
+    width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 14px 0;
+  }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--amber); font-weight: 600; background: rgba(240,168,50,0.06); }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .callout {
+    border-radius: 8px; padding: 12px 16px; margin: 14px 0; font-size: 14px;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .callout .cicon { flex-shrink: 0; font-size: 16px; margin-top: 1px; }
+  .callout.cost { background: rgba(224,101,79,0.08); border: 1px solid rgba(224,101,79,0.3); }
+  .callout.cost .cicon { color: var(--red); }
+  .callout.tip { background: rgba(76,175,125,0.08); border: 1px solid rgba(76,175,125,0.3); }
+  .callout.tip .cicon { color: var(--green); }
+  .callout.security { background: rgba(92,156,214,0.08); border: 1px solid rgba(92,156,214,0.3); }
+  .callout.security .cicon { color: var(--blue); }
+
+  .code-block {
+    position: relative;
+    background: #0a1220;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 12px 0;
+  }
+  .code-block pre {
+    margin: 0; padding: 14px 16px; overflow-x: auto;
+    font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+    font-size: 13px; color: #b8e6b8;
+  }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 11px; padding: 5px 10px;
+    border-radius: 6px; cursor: pointer;
+  }
+  .copy-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
+  .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+  .step {
+    display: flex; gap: 14px; margin-bottom: 16px;
+  }
+  .step-num {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(240,168,50,0.15); color: var(--amber);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; margin-top: 2px;
+  }
+  .step-content { flex: 1; }
+  .step-content h4 { margin: 0 0 4px; font-size: 15px; color: #fff; }
+
+  .checklist-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .checklist-item input[type=checkbox] {
+    width: 18px; height: 18px; margin-top: 2px; accent-color: var(--amber); cursor: pointer; flex-shrink: 0;
+  }
+  .checklist-item label { font-size: 14px; cursor: pointer; }
+  .checklist-item.done label { color: var(--text-dim); text-decoration: line-through; }
+
+  .quiz-q {
+    background: var(--bg-panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; margin-bottom: 14px;
+  }
+  .quiz-q p.qtext { font-weight: 600; color: #fff; margin: 0 0 10px; font-size: 14.5px; }
+  .quiz-opt {
+    display: block; width: 100%; text-align: left;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    color: var(--text); padding: 9px 12px; border-radius: 6px;
+    margin-bottom: 6px; cursor: pointer; font-size: 13.5px;
+  }
+  .quiz-opt:hover { border-color: var(--amber-dim); }
+  .quiz-opt.correct { border-color: var(--green); background: rgba(76,175,125,0.1); }
+  .quiz-opt.wrong { border-color: var(--red); background: rgba(224,101,79,0.1); }
+  .quiz-explain {
+    font-size: 13px; color: var(--text-dim); margin-top: 8px; padding-top: 8px;
+    border-top: 1px dashed var(--border); display: none;
+  }
+  .quiz-explain.show { display: block; }
+
+  footer { text-align: center; color: var(--text-dim); font-size: 12px; padding: 20px 0; }
+</style>
+</head>
+<body>
+
+<div class="progress-wrap">
+  <div class="progress-inner">
+    <span class="progress-label" id="progressLabel">0 / 0 hoàn thành</span>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+  </div>
+</div>
+
+<div class="container">
+
+  <header class="hero">
+    <div class="eyebrow">AWS · LAB CƠ BẢN</div>
+    <h1>Làm Quen Với Amazon S3</h1>
+    <p class="subtitle">Hiểu các khái niệm cốt lõi của S3 và tự tay tạo bucket, tải file, phân quyền truy cập — dành cho người mới bắt đầu, không cần kinh nghiệm trước.</p>
+  </header>
+
+  <!-- SECTION 1: S3 LÀ GÌ -->
+  <section class="block" data-block="1">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">1</div>
+        <h2>S3 là gì?</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+      <p><b>S3 (Simple Storage Service)</b> là dịch vụ lưu trữ đối tượng (object storage) của AWS. Khác với EC2 (máy chủ tính toán) hay EBS (ổ đĩa gắn vào máy chủ), S3 lưu <b>file</b> (gọi là <b>object</b>) một cách độc lập, không cần máy chủ nào chạy — bạn chỉ trả tiền theo dung lượng lưu trữ và số lượt truy cập.</p>
+
+      <div class="analogy">
+        <b>Ví dụ dễ hình dung:</b> S3 giống như một kho lưu trữ khổng lồ chia thành các "tủ đồ" riêng biệt (bucket). Mỗi tủ đồ có tên riêng, duy nhất trên toàn thế giới. Bên trong mỗi tủ, bạn cất bao nhiêu món đồ (object) tùy thích — mỗi món có một "nhãn dán đường dẫn" (key) để tìm lại. Bạn quyết định ai được mở tủ, ai chỉ được xem một món cụ thể (permissions/policy).
+      </div>
+
+      <div class="callout tip">
+        <span class="cicon">✓</span>
+        <div><b>Không giống EC2:</b> S3 không có khái niệm "instance đang chạy" — dữ liệu tồn tại độc lập, không cần server nào bật. Đây là lý do S3 thường được gọi là "serverless storage".</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: KHÁI NIỆM CỐT LÕI -->
+  <section class="block" data-block="2">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">2</div>
+        <h2>Các khái niệm cốt lõi</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+
+      <table>
+        <tr><th>Khái niệm</th><th>Giải thích</th></tr>
+        <tr><td><b>Bucket</b></td><td>"Tủ đồ" chứa object, có tên duy nhất toàn cầu, gắn với một Region cụ thể.</td></tr>
+        <tr><td><b>Object</b></td><td>Một file bất kỳ (ảnh, video, log, backup...) cùng với metadata đi kèm.</td></tr>
+        <tr><td><b>Key</b></td><td>Đường dẫn/tên định danh duy nhất của object trong bucket (vd: <code>images/logo.png</code>).</td></tr>
+        <tr><td><b>Storage Class</b></td><td>Hạng lưu trữ quyết định chi phí và tốc độ truy xuất (Standard, IA, Glacier...).</td></tr>
+        <tr><td><b>Versioning</b></td><td>Giữ lại nhiều phiên bản của cùng một object khi bị ghi đè hoặc xóa.</td></tr>
+        <tr><td><b>Bucket Policy / ACL</b></td><td>Quy tắc phân quyền xác định ai được đọc/ghi bucket hoặc object.</td></tr>
+        <tr><td><b>Block Public Access</b></td><td>Cài đặt an toàn mặc định chặn mọi truy cập public vào bucket.</td></tr>
+        <tr><td><b>Static Website Hosting</b></td><td>Tính năng cho phép S3 phục vụ trực tiếp file HTML/CSS/JS như một website tĩnh.</td></tr>
+      </table>
+
+      <p class="dim" style="font-size:13.5px;">Ghi nhớ nhanh: <b>Bucket</b> = tủ đồ → <b>Object</b> = món đồ bên trong → <b>Key</b> = nhãn dán để tìm món đồ đó.</p>
+    </div>
+  </section>
+
+  <!-- SECTION 3: STORAGE CLASS -->
+  <section class="block" data-block="3">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">3</div>
+        <h2>Storage Class: chọn hạng nào?</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+      <p>Storage class ảnh hưởng trực tiếp đến chi phí lưu trữ và tốc độ truy xuất dữ liệu.</p>
+
+      <table>
+        <tr><th>Storage Class</th><th>Phù hợp với</th><th>Đặc điểm</th></tr>
+        <tr><td><b>S3 Standard</b></td><td>Dữ liệu truy cập thường xuyên</td><td>Chi phí lưu trữ cao hơn, truy xuất tức thì, không phí lấy dữ liệu</td></tr>
+        <tr><td><b>S3 Standard-IA</b></td><td>Dữ liệu ít truy cập nhưng cần nhanh khi cần</td><td>Lưu trữ rẻ hơn, có phí khi truy xuất (retrieval fee)</td></tr>
+        <tr><td><b>S3 Glacier Instant Retrieval</b></td><td>Lưu trữ dài hạn, hiếm khi truy cập</td><td>Rất rẻ, truy xuất tức thì nhưng phí retrieval cao hơn IA</td></tr>
+        <tr><td><b>S3 Glacier Deep Archive</b></td><td>Lưu trữ lâu dài, gần như không truy cập</td><td>Rẻ nhất, thời gian khôi phục có thể mất vài giờ</td></tr>
+      </table>
+
+      <div class="callout cost">
+        <span class="cicon">⚠</span>
+        <div><b>Lưu ý chi phí:</b> S3 không tính phí cố định theo tháng như EC2 — bạn trả theo <b>dung lượng lưu trữ</b>, <b>số request</b>, và <b>data transfer ra ngoài internet</b>. Xóa các file thử nghiệm sau khi lab xong để tránh phí lưu trữ tích lũy.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: HANDS-ON LAB -->
+  <section class="block" data-block="4">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">4</div>
+        <h2>Thực hành: Tạo bucket và quản lý object</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+
+      <p><b>Mục tiêu:</b> Tạo một S3 bucket, tải file lên, thử phân quyền public đọc, và dọn dẹp sau khi xong.</p>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Tạo bucket mới</h4>
+          <p class="dim">Console → S3 → Create bucket. Đặt tên duy nhất toàn cầu (vd: <code>yen-lab-s3-demo-2026</code>), chọn Region <code>ap-southeast-1</code>. Giữ nguyên "Block all public access" ở bước này.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Tải file lên bucket (Upload)</h4>
+          <p class="dim">Vào bucket vừa tạo → Upload → chọn một file bất kỳ (vd: ảnh hoặc file text) → Upload. Đây chính là "object" đầu tiên của bạn.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Xem thuộc tính object</h4>
+          <p class="dim">Click vào tên file vừa upload → xem tab <b>Properties</b> (storage class, kích thước, thời gian tạo) và tab <b>Permissions</b>.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4>Bật Versioning cho bucket</h4>
+          <p class="dim">Vào tab <b>Properties</b> của bucket → Bucket Versioning → Enable. Sau đó thử upload đè lên cùng một file — vào tab <b>Versions</b> để thấy cả 2 phiên bản đều được giữ lại.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <h4>Thử cấp quyền đọc public (tùy chọn, cẩn trọng)</h4>
+          <p class="dim">Tắt "Block all public access" ở cấp bucket → thêm Bucket Policy cho phép <code>s3:GetObject</code> từ <code>"*"</code> → thử mở URL object trực tiếp trên trình duyệt.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <h4>Dọn dẹp: xóa object và bucket</h4>
+          <p class="dim">Xóa toàn bộ object (kể cả các version cũ nếu đã bật Versioning) → sau đó xóa bucket để tránh phát sinh phí lưu trữ về sau.</p>
+        </div>
+      </div>
+
+      <div class="callout security">
+        <span class="cicon">🔒</span>
+        <div><b>Best practice bảo mật:</b> Trong môi trường thực tế, hầu như không nên mở public bucket. Thay vào đó, dùng <b>CloudFront + Origin Access Control (OAC)</b> hoặc <b>Presigned URL</b> để chia sẻ file có kiểm soát và có thời hạn.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 5: CLI TƯƠNG ĐƯƠNG -->
+  <section class="block" data-block="5">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">5</div>
+        <h2>Thực hiện bằng AWS CLI</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+      <p>Toàn bộ quy trình trên cũng có thể thực hiện bằng CLI (region: <code>ap-southeast-1</code>):</p>
+
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre># Tạo bucket
+aws s3api create-bucket \
+  --bucket yen-lab-s3-demo-2026 \
+  --region ap-southeast-1 \
+  --create-bucket-configuration LocationConstraint=ap-southeast-1
+
+# Upload file lên bucket
+aws s3 cp ./hello.txt s3://yen-lab-s3-demo-2026/hello.txt
+
+# Liệt kê object trong bucket
+aws s3 ls s3://yen-lab-s3-demo-2026/
+
+# Bật Versioning
+aws s3api put-bucket-versioning \
+  --bucket yen-lab-s3-demo-2026 \
+  --versioning-configuration Status=Enabled
+
+# Xem các version của một object
+aws s3api list-object-versions \
+  --bucket yen-lab-s3-demo-2026 \
+  --prefix hello.txt
+
+# Xóa object rồi xóa bucket
+aws s3 rm s3://yen-lab-s3-demo-2026/hello.txt
+aws s3 rb s3://yen-lab-s3-demo-2026 --force</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 6: CHECKLIST -->
+  <section class="block" data-block="6">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">✓</div>
+        <h2>Checklist thực hành</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body" id="checklistBody"></div>
+  </section>
+
+  <!-- SECTION 7: QUIZ -->
+  <section class="block" data-block="7">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">?</div>
+        <h2>Kiểm tra kiến thức</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body" id="quizBody"></div>
+  </section>
+
+  <footer>Lab S3 cơ bản · Tự thực hành trong AWS Free Tier · Region gợi ý: ap-southeast-1</footer>
+</div>
+
+<script>
+const checklistItems = [
+  "Đã tạo bucket mới với tên duy nhất toàn cầu",
+  "Đã upload thành công một object vào bucket",
+  "Đã xem Properties và Permissions của object",
+  "Đã bật Versioning và kiểm tra nhiều phiên bản của object",
+  "Đã thử (hoặc tìm hiểu) cách cấp quyền public đọc qua bucket policy",
+  "Đã xóa object và bucket sau khi thực hành xong"
+];
+
+const checklistBody = document.getElementById('checklistBody');
+checklistItems.forEach((text, i) => {
+  const id = 'chk_' + i;
+  const div = document.createElement('div');
+  div.className = 'checklist-item';
+  div.innerHTML = `<input type="checkbox" id="${id}"><label for="${id}">${text}</label>`;
+  checklistBody.appendChild(div);
+});
+
+const quizData = [
+  {
+    q: "Đơn vị lưu trữ cơ bản trong S3 được gọi là gì?",
+    opts: ["Instance", "Object", "Volume", "Snapshot"],
+    correct: 1,
+    explain: "S3 là object storage — mỗi file được lưu dưới dạng một object, gắn với một key duy nhất trong bucket."
+  },
+  {
+    q: "Tên bucket S3 cần đáp ứng điều kiện gì?",
+    opts: ["Chỉ cần duy nhất trong tài khoản của bạn", "Duy nhất trên toàn cầu (global)", "Không cần duy nhất, AWS tự thêm hậu tố", "Phải trùng với tên miền website"],
+    correct: 1,
+    explain: "Tên bucket S3 phải là duy nhất trên toàn thế giới, vì namespace bucket là global chứ không giới hạn trong region hay account."
+  },
+  {
+    q: "Khi bật Versioning cho bucket, điều gì xảy ra khi bạn upload đè một file đã tồn tại?",
+    opts: ["File cũ bị xóa vĩnh viễn", "Cả file cũ và file mới đều được giữ lại dưới dạng các version khác nhau", "AWS từ chối upload vì trùng tên", "Chỉ file mới nhất được lưu, không có version"],
+    correct: 1,
+    explain: "Versioning giữ lại toàn bộ lịch sử các phiên bản của một object — upload đè không xóa version cũ mà tạo thêm version mới."
+  },
+  {
+    q: "Storage class nào phù hợp nhất cho dữ liệu lưu trữ lâu dài, gần như không bao giờ truy cập?",
+    opts: ["S3 Standard", "S3 Standard-IA", "S3 Glacier Deep Archive", "S3 Intelligent-Tiering"],
+    correct: 2,
+    explain: "S3 Glacier Deep Archive có chi phí lưu trữ thấp nhất, phù hợp cho dữ liệu archive dài hạn, đổi lại thời gian khôi phục lâu hơn (vài giờ)."
+  }
+];
+
+const quizBody = document.getElementById('quizBody');
+quizData.forEach((item, qi) => {
+  const div = document.createElement('div');
+  div.className = 'quiz-q';
+  let optsHtml = item.opts.map((opt, oi) =>
+    `<button class="quiz-opt" onclick="answerQuiz(${qi}, ${oi}, this)">${opt}</button>`
+  ).join('');
+  div.innerHTML = `<p class="qtext">Câu ${qi+1}: ${item.q}</p>${optsHtml}<div class="quiz-explain" id="explain_${qi}">${item.explain}</div>`;
+  quizBody.appendChild(div);
+});
+
+function answerQuiz(qi, oi, btn) {
+  const parent = btn.parentElement;
+  const opts = parent.querySelectorAll('.quiz-opt');
+  const correct = quizData[qi].correct;
+  opts.forEach((o, idx) => {
+    o.style.pointerEvents = 'none';
+    if (idx === correct) o.classList.add('correct');
+    else if (idx === oi) o.classList.add('wrong');
+  });
+  document.getElementById('explain_' + qi).classList.add('show');
+}
+
+function toggleBlock(header) {
+  header.parentElement.classList.toggle('collapsed');
+}
+
+function copyCode(btn) {
+  const pre = btn.parentElement.querySelector('pre');
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.textContent = 'Đã copy!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+const STORAGE_KEY = 's3_lab_progress_beginner';
+
+function loadProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    document.querySelectorAll('.checklist-item input[type=checkbox]').forEach(cb => {
+      if (saved[cb.id]) {
+        cb.checked = true;
+        cb.parentElement.classList.add('done');
+      }
+    });
+  } catch(e) {}
+  updateProgress();
+}
+
+function saveProgress() {
+  const state = {};
+  document.querySelectorAll('.checklist-item input[type=checkbox]').forEach(cb => {
+    state[cb.id] = cb.checked;
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function updateProgress() {
+  const boxes = document.querySelectorAll('.checklist-item input[type=checkbox]');
+  const total = boxes.length;
+  const done = Array.from(boxes).filter(b => b.checked).length;
+  document.getElementById('progressLabel').textContent = `${done} / ${total} hoàn thành`;
+  document.getElementById('progressFill').style.width = total ? (done/total*100) + '%' : '0%';
+}
+
+document.addEventListener('change', (e) => {
+  if (e.target.matches('.checklist-item input[type=checkbox]')) {
+    e.target.parentElement.classList.toggle('done', e.target.checked);
+    saveProgress();
+    updateProgress();
+  }
+});
+
+loadProgress();
+</script>
+
+</body>
+</html>

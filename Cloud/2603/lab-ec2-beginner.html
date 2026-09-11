@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LAB: Làm Quen Với Amazon EC2</title>
+<style>
+  :root {
+    --bg: #0b1220;
+    --bg-panel: #101a2e;
+    --bg-panel-2: #0e1729;
+    --border: #1f2d4a;
+    --amber: #f0a832;
+    --amber-dim: #b9822a;
+    --text: #dbe4f3;
+    --text-dim: #8ea0c2;
+    --green: #4caf7d;
+    --red: #e0654f;
+    --blue: #5c9cd6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    line-height: 1.6;
+  }
+  .progress-wrap {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--bg-panel);
+    border-bottom: 1px solid var(--border);
+    padding: 10px 16px;
+  }
+  .progress-inner {
+    max-width: 900px; margin: 0 auto;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .progress-bar-bg {
+    flex: 1; height: 8px; background: #182338; border-radius: 4px; overflow: hidden;
+  }
+  .progress-bar-fill {
+    height: 100%; background: linear-gradient(90deg, var(--amber-dim), var(--amber));
+    width: 0%; transition: width .4s ease;
+  }
+  .progress-label { font-size: 13px; color: var(--text-dim); white-space: nowrap; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 32px 20px 80px; }
+
+  header.hero {
+    padding: 28px 0 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .eyebrow { color: var(--amber); font-size: 13px; letter-spacing: 0.3px; margin-bottom: 8px; }
+  h1 { font-size: 30px; margin: 0 0 10px; color: #fff; }
+  .subtitle { color: var(--text-dim); font-size: 15px; max-width: 620px; }
+
+  section.block {
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 18px;
+    overflow: hidden;
+  }
+  .block-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .block-header:hover { background: rgba(240,168,50,0.04); }
+  .block-title { display: flex; align-items: center; gap: 10px; }
+  .block-title .icon-box {
+    width: 30px; height: 30px; border-radius: 7px;
+    background: rgba(240,168,50,0.12);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--amber); font-size: 15px; flex-shrink: 0;
+  }
+  .block-title h2 { font-size: 17px; margin: 0; color: #fff; }
+  .chevron { color: var(--text-dim); transition: transform .25s ease; font-size: 13px; }
+  .block.collapsed .chevron { transform: rotate(-90deg); }
+  .block-body {
+    padding: 0 20px 20px;
+    border-top: 1px solid var(--border);
+    padding-top: 18px;
+  }
+  .block.collapsed .block-body { display: none; }
+
+  p { color: var(--text); font-size: 15px; }
+  .dim { color: var(--text-dim); }
+
+  .analogy {
+    background: var(--bg-panel-2);
+    border-left: 3px solid var(--blue);
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-size: 14px;
+    margin: 14px 0;
+  }
+  .analogy b { color: var(--blue); }
+
+  table {
+    width: 100%; border-collapse: collapse; font-size: 13.5px; margin: 14px 0;
+  }
+  th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+  th { color: var(--amber); font-weight: 600; background: rgba(240,168,50,0.06); }
+  tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .callout {
+    border-radius: 8px; padding: 12px 16px; margin: 14px 0; font-size: 14px;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .callout .cicon { flex-shrink: 0; font-size: 16px; margin-top: 1px; }
+  .callout.cost { background: rgba(224,101,79,0.08); border: 1px solid rgba(224,101,79,0.3); }
+  .callout.cost .cicon { color: var(--red); }
+  .callout.tip { background: rgba(76,175,125,0.08); border: 1px solid rgba(76,175,125,0.3); }
+  .callout.tip .cicon { color: var(--green); }
+  .callout.security { background: rgba(92,156,214,0.08); border: 1px solid rgba(92,156,214,0.3); }
+  .callout.security .cicon { color: var(--blue); }
+
+  .code-block {
+    position: relative;
+    background: #0a1220;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin: 12px 0;
+  }
+  .code-block pre {
+    margin: 0; padding: 14px 16px; overflow-x: auto;
+    font-family: "SFMono-Regular", Consolas, Menlo, monospace;
+    font-size: 13px; color: #b8e6b8;
+  }
+  .copy-btn {
+    position: absolute; top: 8px; right: 8px;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    color: var(--text-dim); font-size: 11px; padding: 5px 10px;
+    border-radius: 6px; cursor: pointer;
+  }
+  .copy-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
+  .copy-btn.copied { color: var(--green); border-color: var(--green); }
+
+  .step {
+    display: flex; gap: 14px; margin-bottom: 16px;
+  }
+  .step-num {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(240,168,50,0.15); color: var(--amber);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; margin-top: 2px;
+  }
+  .step-content { flex: 1; }
+  .step-content h4 { margin: 0 0 4px; font-size: 15px; color: #fff; }
+
+  .checklist-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+  }
+  .checklist-item input[type=checkbox] {
+    width: 18px; height: 18px; margin-top: 2px; accent-color: var(--amber); cursor: pointer; flex-shrink: 0;
+  }
+  .checklist-item label { font-size: 14px; cursor: pointer; }
+  .checklist-item.done label { color: var(--text-dim); text-decoration: line-through; }
+
+  .quiz-q {
+    background: var(--bg-panel-2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px; margin-bottom: 14px;
+  }
+  .quiz-q p.qtext { font-weight: 600; color: #fff; margin: 0 0 10px; font-size: 14.5px; }
+  .quiz-opt {
+    display: block; width: 100%; text-align: left;
+    background: var(--bg-panel); border: 1px solid var(--border);
+    color: var(--text); padding: 9px 12px; border-radius: 6px;
+    margin-bottom: 6px; cursor: pointer; font-size: 13.5px;
+  }
+  .quiz-opt:hover { border-color: var(--amber-dim); }
+  .quiz-opt.correct { border-color: var(--green); background: rgba(76,175,125,0.1); }
+  .quiz-opt.wrong { border-color: var(--red); background: rgba(224,101,79,0.1); }
+  .quiz-explain {
+    font-size: 13px; color: var(--text-dim); margin-top: 8px; padding-top: 8px;
+    border-top: 1px dashed var(--border); display: none;
+  }
+  .quiz-explain.show { display: block; }
+
+  .badge {
+    display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px;
+    background: rgba(240,168,50,0.12); color: var(--amber); margin-left: 6px;
+  }
+
+  footer { text-align: center; color: var(--text-dim); font-size: 12px; padding: 20px 0; }
+</style>
+</head>
+<body>
+
+<div class="progress-wrap">
+  <div class="progress-inner">
+    <span class="progress-label" id="progressLabel">0 / 0 hoàn thành</span>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+  </div>
+</div>
+
+<div class="container">
+
+  <header class="hero">
+    <div class="eyebrow">AWS · LAB CƠ BẢN 01</div>
+    <h1>Làm Quen Với Amazon EC2</h1>
+    <p class="subtitle">Hiểu các khái niệm cốt lõi của EC2 và tự tay khởi chạy máy chủ ảo đầu tiên trên AWS — dành cho người mới bắt đầu, không cần kinh nghiệm trước.</p>
+  </header>
+
+  <!-- SECTION 1: EC2 LÀ GÌ -->
+  <section class="block" data-block="1">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">1</div>
+        <h2>EC2 là gì?</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+      <p><b>EC2 (Elastic Compute Cloud)</b> là dịch vụ cho phép bạn thuê máy chủ ảo (gọi là <b>instance</b>) chạy trên hạ tầng của Amazon. Thay vì phải mua máy tính vật lý, cài đặt, bảo trì phần cứng — bạn chỉ cần vài phút để có một máy chủ sẵn sàng sử dụng, trả tiền theo thời gian dùng.</p>
+
+      <div class="analogy">
+        <b>Ví dụ dễ hình dung:</b> EC2 giống như thuê một căn hộ trong một tòa chung cư khổng lồ (data center của AWS). Bạn chọn loại căn hộ (instance type: nhỏ/vừa/lớn), chọn nội thất có sẵn (AMI: hệ điều hành + phần mềm cài sẵn), chọn ổ khóa cửa (key pair để SSH vào), và ai được phép gõ cửa (security group: tường lửa). Bạn trả tiền theo giờ/giây sử dụng, và có thể trả lại căn hộ bất cứ lúc nào (terminate instance).
+      </div>
+
+      <div class="callout cost">
+        <span class="cicon">⚠</span>
+        <div><b>Lưu ý chi phí:</b> EC2 tính phí theo thời gian instance đang <i>chạy</i> (running), kể cả khi bạn không làm gì. Luôn nhớ <b>Stop</b> hoặc <b>Terminate</b> instance sau khi thực hành xong để tránh phát sinh phí ngoài ý muốn.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 2: KHÁI NIỆM CỐT LÕI -->
+  <section class="block" data-block="2">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">2</div>
+        <h2>Các khái niệm cốt lõi</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+
+      <table>
+        <tr><th>Khái niệm</th><th>Giải thích</th></tr>
+        <tr><td><b>Instance</b></td><td>Một máy chủ ảo cụ thể đang chạy trên AWS.</td></tr>
+        <tr><td><b>AMI</b> (Amazon Machine Image)</td><td>"Bản sao lưu" của hệ điều hành + phần mềm cài sẵn, dùng làm khuôn mẫu để khởi tạo instance (ví dụ: Amazon Linux 2023, Ubuntu 22.04).</td></tr>
+        <tr><td><b>Instance Type</b></td><td>Cấu hình phần cứng (số vCPU, RAM, mạng) — ví dụ <code>t2.micro</code>, <code>t3.small</code>.</td></tr>
+        <tr><td><b>Key Pair</b></td><td>Cặp khóa public/private dùng để SSH đăng nhập vào instance mà không cần mật khẩu.</td></tr>
+        <tr><td><b>Security Group</b></td><td>Tường lửa ảo, kiểm soát traffic ra/vào instance theo port và giao thức (giống bảo vệ ở cổng chung cư).</td></tr>
+        <tr><td><b>EBS</b> (Elastic Block Store)</td><td>Ổ đĩa lưu trữ gắn vào instance, tồn tại độc lập với vòng đời instance (không mất dữ liệu khi Stop).</td></tr>
+        <tr><td><b>Elastic IP</b></td><td>Địa chỉ IP tĩnh, không đổi kể cả khi bạn Stop/Start lại instance.</td></tr>
+        <tr><td><b>Region / AZ</b></td><td>Region là khu vực địa lý (vd: <code>ap-southeast-1</code> - Singapore); AZ (Availability Zone) là các trung tâm dữ liệu tách biệt vật lý trong cùng Region.</td></tr>
+      </table>
+
+      <p class="dim" style="font-size:13.5px;">Ghi nhớ nhanh: <b>AMI</b> = bản thiết kế → <b>Instance</b> = máy chủ thực tế được tạo ra từ bản thiết kế đó.</p>
+    </div>
+  </section>
+
+  <!-- SECTION 3: SO SÁNH INSTANCE TYPE -->
+  <section class="block" data-block="3">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">3</div>
+        <h2>Instance Type: chọn loại nào?</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+      <p>Instance type được đặt tên theo dạng <code>[họ][thế hệ].[kích thước]</code>, ví dụ <code>t3.micro</code>.</p>
+
+      <table>
+        <tr><th>Họ (Family)</th><th>Tối ưu cho</th><th>Ví dụ dùng thực tế</th></tr>
+        <tr><td><b>T</b> — Burstable</td><td>Workload nhẹ, không liên tục</td><td>Web server nhỏ, môi trường học/test</td></tr>
+        <tr><td><b>M</b> — General purpose</td><td>Cân bằng CPU/RAM</td><td>Ứng dụng backend thông thường</td></tr>
+        <tr><td><b>C</b> — Compute optimized</td><td>CPU mạnh</td><td>Xử lý batch, encoding video</td></tr>
+        <tr><td><b>R</b> — Memory optimized</td><td>RAM lớn</td><td>Database, cache trong bộ nhớ</td></tr>
+      </table>
+
+      <div class="callout tip">
+        <span class="cicon">✓</span>
+        <div><b>Cho người mới bắt đầu:</b> <code>t2.micro</code> hoặc <code>t3.micro</code> nằm trong <b>AWS Free Tier</b> (750 giờ/tháng miễn phí trong 12 tháng đầu) — lựa chọn lý tưởng để thực hành.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 4: HANDS-ON LAB -->
+  <section class="block" data-block="4">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">4</div>
+        <h2>Thực hành: Khởi chạy EC2 instance</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+
+      <p><b>Mục tiêu:</b> Khởi chạy một EC2 instance chạy Amazon Linux, kết nối qua SSH, và cài một web server đơn giản.</p>
+
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-content">
+          <h4>Vào EC2 Console và khởi chạy instance</h4>
+          <p class="dim">Console → EC2 → Launch Instance. Đặt tên (vd: <code>lab-instance-01</code>), chọn AMI <b>Amazon Linux 2023</b>, chọn instance type <code>t2.micro</code>.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-content">
+          <h4>Tạo Key Pair mới</h4>
+          <p class="dim">Chọn "Create new key pair" → đặt tên <code>lab-key</code> → chọn định dạng <code>.pem</code> (Mac/Linux) → tải về và lưu cẩn thận (không thể tải lại lần 2).</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-content">
+          <h4>Cấu hình Security Group</h4>
+          <p class="dim">Cho phép <b>SSH (port 22)</b> từ IP của bạn, và <b>HTTP (port 80)</b> từ <code>0.0.0.0/0</code> nếu muốn truy cập web server sau này.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-content">
+          <h4>Launch instance và chờ trạng thái Running</h4>
+          <p class="dim">Sau khi bấm "Launch Instance", chờ khoảng 1-2 phút để trạng thái chuyển từ <code>pending</code> sang <code>running</code>.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-content">
+          <h4>Kết nối SSH vào instance</h4>
+          <p class="dim">Lấy Public IPv4 từ Console, chỉnh quyền file key rồi kết nối:</p>
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre>chmod 400 lab-key.pem
+ssh -i lab-key.pem ec2-user@&lt;PUBLIC_IP&gt;</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">6</div>
+        <div class="step-content">
+          <h4>Cài đặt web server (Nginx) để kiểm tra</h4>
+          <div class="code-block">
+            <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            <pre>sudo dnf update -y
+sudo dnf install nginx -y
+sudo systemctl start nginx
+sudo systemctl enable nginx</pre>
+          </div>
+          <p class="dim">Mở trình duyệt và truy cập <code>http://&lt;PUBLIC_IP&gt;</code> — bạn sẽ thấy trang chào mừng của Nginx.</p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-num">7</div>
+        <div class="step-content">
+          <h4>Dọn dẹp: Stop hoặc Terminate</h4>
+          <p class="dim">Sau khi thực hành xong, vào Console → chọn instance → Instance State → <b>Stop</b> (tạm dừng, vẫn giữ EBS) hoặc <b>Terminate</b> (xóa hẳn) để tránh phát sinh phí.</p>
+        </div>
+      </div>
+
+      <div class="callout security">
+        <span class="cicon">🔒</span>
+        <div><b>Best practice bảo mật:</b> Không nên mở port 22 (SSH) cho <code>0.0.0.0/0</code> trong môi trường thực tế — chỉ nên giới hạn theo IP cụ thể hoặc dùng AWS Systems Manager Session Manager để tránh mở port SSH ra internet.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 5: CLI TƯƠNG ĐƯƠNG -->
+  <section class="block" data-block="5">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">5</div>
+        <h2>Thực hiện bằng AWS CLI</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body">
+      <p>Toàn bộ quy trình trên cũng có thể thực hiện bằng CLI (region: <code>ap-southeast-1</code>):</p>
+
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre># Tạo key pair
+aws ec2 create-key-pair --key-name lab-key \
+  --query 'KeyMaterial' --output text > lab-key.pem
+chmod 400 lab-key.pem
+
+# Khởi chạy instance (thay ami-id và security-group-id phù hợp region)
+aws ec2 run-instances \
+  --image-id ami-0xxxxxxxxxxxxxxxx \
+  --instance-type t2.micro \
+  --key-name lab-key \
+  --security-group-ids sg-xxxxxxxx \
+  --region ap-southeast-1 \
+  --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=lab-instance-01}]'
+
+# Kiểm tra trạng thái instance
+aws ec2 describe-instances --filters "Name=tag:Name,Values=lab-instance-01" \
+  --query 'Reservations[].Instances[].[InstanceId,State.Name,PublicIpAddress]' \
+  --output table
+
+# Dừng và xóa instance khi xong
+aws ec2 stop-instances --instance-ids i-xxxxxxxxxxxxxxxxx
+aws ec2 terminate-instances --instance-ids i-xxxxxxxxxxxxxxxxx</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- SECTION 6: CHECKLIST -->
+  <section class="block" data-block="6">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">✓</div>
+        <h2>Checklist thực hành</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body" id="checklistBody">
+      <!-- populated by JS -->
+    </div>
+  </section>
+
+  <!-- SECTION 7: QUIZ -->
+  <section class="block" data-block="7">
+    <div class="block-header" onclick="toggleBlock(this)">
+      <div class="block-title">
+        <div class="icon-box">?</div>
+        <h2>Kiểm tra kiến thức</h2>
+      </div>
+      <span class="chevron">▾</span>
+    </div>
+    <div class="block-body" id="quizBody"></div>
+  </section>
+
+  <footer>Lab EC2 cơ bản · Tự thực hành trong AWS Free Tier · Region gợi ý: ap-southeast-1</footer>
+</div>
+
+<script>
+const checklistItems = [
+  "Đã khởi chạy EC2 instance với AMI Amazon Linux 2023",
+  "Đã tạo và tải về Key Pair (.pem)",
+  "Đã cấu hình Security Group cho phép SSH và HTTP",
+  "Đã kết nối SSH thành công vào instance",
+  "Đã cài đặt và chạy Nginx, truy cập được qua trình duyệt",
+  "Đã Stop hoặc Terminate instance sau khi thực hành xong"
+];
+
+const checklistBody = document.getElementById('checklistBody');
+checklistItems.forEach((text, i) => {
+  const id = 'chk_' + i;
+  const div = document.createElement('div');
+  div.className = 'checklist-item';
+  div.innerHTML = `<input type="checkbox" id="${id}"><label for="${id}">${text}</label>`;
+  checklistBody.appendChild(div);
+});
+
+const quizData = [
+  {
+    q: "Chi phí EC2 chủ yếu phát sinh khi nào?",
+    opts: ["Khi instance ở trạng thái Stopped", "Khi instance ở trạng thái Running", "Chỉ khi tạo AMI mới", "Chỉ khi tạo Key Pair"],
+    correct: 1,
+    explain: "AWS tính phí compute theo thời gian instance đang chạy (Running). Khi Stop, bạn không trả phí compute nhưng vẫn trả phí lưu trữ EBS nếu volume chưa xóa."
+  },
+  {
+    q: "Security Group có vai trò gì?",
+    opts: ["Lưu trữ dữ liệu của instance", "Tường lửa kiểm soát traffic ra/vào instance", "Định danh AMI được dùng", "Cấp phát địa chỉ IP tĩnh"],
+    correct: 1,
+    explain: "Security Group hoạt động như tường lửa ảo, kiểm soát traffic theo port/giao thức/nguồn IP được phép truy cập instance."
+  },
+  {
+    q: "Điều gì xảy ra với dữ liệu trên EBS khi bạn Stop một instance?",
+    opts: ["Dữ liệu bị xóa hoàn toàn", "Dữ liệu vẫn được giữ nguyên", "Dữ liệu chuyển sang S3 tự động", "Instance không thể Stop nếu có EBS"],
+    correct: 1,
+    explain: "EBS là ổ đĩa độc lập với vòng đời instance — dữ liệu vẫn được giữ khi Stop, chỉ mất khi bạn xóa volume hoặc Terminate với tùy chọn xóa EBS kèm theo."
+  },
+  {
+    q: "Instance type nào phù hợp nhất để thực hành và nằm trong AWS Free Tier?",
+    opts: ["c5.4xlarge", "r5.large", "t2.micro", "m5.xlarge"],
+    correct: 2,
+    explain: "t2.micro (hoặc t3.micro tùy region) nằm trong gói Free Tier 750 giờ/tháng miễn phí trong 12 tháng đầu, phù hợp để học và test."
+  }
+];
+
+const quizBody = document.getElementById('quizBody');
+quizData.forEach((item, qi) => {
+  const div = document.createElement('div');
+  div.className = 'quiz-q';
+  let optsHtml = item.opts.map((opt, oi) =>
+    `<button class="quiz-opt" onclick="answerQuiz(${qi}, ${oi}, this)">${opt}</button>`
+  ).join('');
+  div.innerHTML = `<p class="qtext">Câu ${qi+1}: ${item.q}</p>${optsHtml}<div class="quiz-explain" id="explain_${qi}">${item.explain}</div>`;
+  quizBody.appendChild(div);
+});
+
+function answerQuiz(qi, oi, btn) {
+  const parent = btn.parentElement;
+  const opts = parent.querySelectorAll('.quiz-opt');
+  const correct = quizData[qi].correct;
+  opts.forEach((o, idx) => {
+    o.style.pointerEvents = 'none';
+    if (idx === correct) o.classList.add('correct');
+    else if (idx === oi) o.classList.add('wrong');
+  });
+  document.getElementById('explain_' + qi).classList.add('show');
+}
+
+function toggleBlock(header) {
+  header.parentElement.classList.toggle('collapsed');
+}
+
+function copyCode(btn) {
+  const pre = btn.parentElement.querySelector('pre');
+  navigator.clipboard.writeText(pre.textContent).then(() => {
+    btn.textContent = 'Đã copy!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 1500);
+  });
+}
+
+// --- Progress tracking via localStorage ---
+const STORAGE_KEY = 'ec2_lab_progress_beginner';
+
+function loadProgress() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    document.querySelectorAll('.checklist-item input[type=checkbox]').forEach(cb => {
+      if (saved[cb.id]) {
+        cb.checked = true;
+        cb.parentElement.classList.add('done');
+      }
+    });
+  } catch(e) {}
+  updateProgress();
+}
+
+function saveProgress() {
+  const state = {};
+  document.querySelectorAll('.checklist-item input[type=checkbox]').forEach(cb => {
+    state[cb.id] = cb.checked;
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function updateProgress() {
+  const boxes = document.querySelectorAll('.checklist-item input[type=checkbox]');
+  const total = boxes.length;
+  const done = Array.from(boxes).filter(b => b.checked).length;
+  document.getElementById('progressLabel').textContent = `${done} / ${total} hoàn thành`;
+  document.getElementById('progressFill').style.width = total ? (done/total*100) + '%' : '0%';
+}
+
+document.addEventListener('change', (e) => {
+  if (e.target.matches('.checklist-item input[type=checkbox]')) {
+    e.target.parentElement.classList.toggle('done', e.target.checked);
+    saveProgress();
+    updateProgress();
+  }
+});
+
+loadProgress();
+</script>
+
+</body>
+</html>
