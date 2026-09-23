@@ -116,18 +116,22 @@ app.listen(port, () => {
 Tạo `sample-app/Dockerfile`:
 
 ```dockerfile
+
 FROM node:20-alpine
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install --omit=dev
+
+RUN npm install
 
 COPY . .
 
 EXPOSE 3000
 
 CMD ["npm", "start"]
+
+
 ```
 
 ---
@@ -137,48 +141,72 @@ CMD ["npm", "start"]
 Tạo file `sample-app/Jenkinsfile`:
 
 ```groovy
+
 pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "sample-ci-app"
-        CONTAINER_NAME = "sample-ci-app"
+        APP_NAME = 'sample-ci-app'
     }
 
     stages {
+
         stage('Checkout') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Install dependencies') {
+        stage('Verify Workspace') {
             steps {
-                sh 'docker run --rm -v "$WORKSPACE":/app -w /app node:20-alpine npm install'
+                sh '''
+                    echo "=== Workspace ==="
+                    echo "$WORKSPACE"
+
+                    echo "=== Files ==="
+                    ls -la
+
+                    echo "=== package.json ==="
+                    cat package.json
+
+                    echo "=== Docker ==="
+                    docker --version
+                    docker version
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh '''
+                    docker build \
+                      -t ${APP_NAME}:${BUILD_NUMBER} \
+                      -t ${APP_NAME}:latest \
+                      .
+                '''
             }
         }
 
         stage('Test') {
             steps {
-                sh 'docker run --rm -v "$WORKSPACE":/app -w /app node:20-alpine npm test'
-            }
-        }
-
-        stage('Build Docker image') {
-            steps {
-                sh 'docker build -t $IMAGE_NAME:$BUILD_NUMBER .'
+                sh '''
+                    docker run --rm \
+                      ${APP_NAME}:${BUILD_NUMBER} \
+                      npm test
+                '''
             }
         }
 
         stage('Deploy') {
             steps {
                 sh '''
-                    docker rm -f $CONTAINER_NAME || true
+                    docker rm -f ${APP_NAME} || true
+
                     docker run -d \
-                      --name $CONTAINER_NAME \
-                      -p 3000:3000 \
+                      --name ${APP_NAME} \
                       --restart unless-stopped \
-                      $IMAGE_NAME:$BUILD_NUMBER
+                      -p 3000:3000 \
+                      ${APP_NAME}:${BUILD_NUMBER}
                 '''
             }
         }
@@ -186,13 +214,15 @@ pipeline {
 
     post {
         success {
-            echo 'Build and deployment completed successfully.'
+            echo 'Pipeline completed successfully.'
         }
+
         failure {
             echo 'Pipeline failed. Review the console output.'
         }
     }
 }
+
 ```
 
 ---
